@@ -1,0 +1,46 @@
+---
+rsync:
+  host: localhost
+  username: marpauli
+  port: 11122
+  rsync_options:
+    - -rtvz
+    - --progress
+    - -e
+    - ssh -p 11122
+  local_root_dir: /home/marpauli/code/elvis/SyncSuite
+script:
+  VM_check_timeout: 0
+  result_timeout: 0
+  default_browse_dir: /home/marpauli/code/elvis/SyncSuite
+  date_format: '%Y-%m-%d %H:%M:%S'
+sync:
+  sync_all: false
+  project: null
+  file_keys:
+    - 27
+    - 19
+services:
+  restart_services: true
+  services:
+    - some+service.target
+colors:
+  GN: "\e[0;32m"
+  GB: "\e[1;32m"
+  RN: "\e[0;31m"
+  RB: "\e[1;31m"
+  CN: "\e[0;36m"
+  CB: "\e[1;36m"
+  WU: "\e[4;37m"
+  BLD: "\e[1m"
+  UND: "\e[4m"
+  RST: "\e[0m"
+gui:
+  sg_theme: DarkGrey11
+  DEFTC: lightgrey
+  CHANGETC: red
+  ERRTC: yellow
+  text_editor: /usr/bin/gnome-text-editor
+  terminal_app: /usr/bin/gnome-terminal
+  stay_alive: true
+  errors_timeout: 3
