@@ -2,7 +2,7 @@
 rsync:
   host: localhost
   username: marpauli
-  port: 11122
+  port: 22
   rsync_options:
     - -rtvz
     - --progress
@@ -21,9 +21,9 @@ sync:
     - 27
     - 19
 services:
-  restart_services: true
+  restart_services: false
   services:
-    - some+service.target
+    -
 colors:
   GN: "\e[0;32m"
   GB: "\e[1;32m"

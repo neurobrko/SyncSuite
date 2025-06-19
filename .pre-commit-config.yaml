@@ -23,3 +23,4 @@ repos:
       - id: yamllint
         name: Lint YAML files
         files: \.y[a]?ml$
+        args: [--config-file=.yamllint-config.yaml]

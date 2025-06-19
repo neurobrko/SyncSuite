@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from subprocess import run, PIPE
-from time import sleep, strftime
+from time import sleep, strftime, time
 
 from pytimedinput import timedKey
 
@@ -58,8 +58,27 @@ ap.add_argument(
     "--services_names",
     help="Name(s) of service(s) to restart. No spaces, comma as separator.",
 )
+ap.add_argument(
+    "-ps", "--persistent_ssh", help="Use persistent SSH connection", action="store_true"
+)
+# TODO: add option for persistent SSH connection
 
 args = ap.parse_args()
+
+
+def _modify_ssh_options(options: list, ssh_options: str) -> list:
+    """
+    Modify rsync options to include custom SSH options.
+    :param options: List of rsync options.
+    :param ssh_options: Custom SSH options to include.
+    :return: Modified list of rsync options.
+    """
+    for n, item in enumerate(options):
+        if item.startswith("ssh -p"):
+            options[n] = f"ssh {ssh_options}"
+            break
+    return options
+
 
 # override settings, if set from cli
 if args.remote:
@@ -69,10 +88,7 @@ if args.username:
 if args.ssh_port:
     port = args.ssh_port
     # if port is specified in CLI, alter rsync_options!
-    for n, item in enumerate(rsync_options):
-        if item.startswith("ssh -p"):
-            rsync_options[n] = f"ssh -p {port}"
-            break
+    rsync_options = _modify_ssh_options(rsync_options, f"-p {port}")
 if args.local_root_dir:
     local_root_dir = args.local_root_dir
 if args.vm_timeout:
@@ -100,15 +116,19 @@ def get_project_maps(filemap: dict, project_name: str) -> dict:
     return filemap[project_name]
 
 
-def run_rsync(filepaths: list, counter: int):
+def run_rsync(filepaths: list, counter: int, use_persistent_ssh: bool = True) -> int:
     print(f"{GN}[{counter}]{RST}")
     print(f"{CB}local file: {RST}{WU}{filepaths[0]}{RST}")
     print(f"{CB}remote file: {RST}{WU}{filepaths[1]}{RST}")
     to_log = f"\n*_* [{counter}] *_*\nsource: {filepaths[0]}\ntarget: {filepaths[1]}\nrsync output:"
+    options = rsync_options[:]
+    if use_persistent_ssh:
+        options = _modify_ssh_options(options, f"-S /tmp/syncsuite_socket -p {port}")
+
     try:
         result = run(
             ["rsync"]
-            + rsync_options
+            + options
             + [
                 (Path(local_root_dir) / filepaths[0]).as_posix(),
                 f"{username}@{host}:{filepaths[1]}",
@@ -117,6 +137,10 @@ def run_rsync(filepaths: list, counter: int):
             stderr=PIPE,
             text=True,
         )
+    except Exception as err:
+        print(f"{RB}Something went wrong! {err}{RST}")
+        LOGGER.error(f"Error during rsync: {err}")
+    else:
         to_log = "\n".join([to_log, result.stdout])
         LOGGER.info(to_log)
         counter += 1
@@ -125,9 +149,6 @@ def run_rsync(filepaths: list, counter: int):
             LOGGER.info(f"\n!!! {result.stderr} !!!")
             counter -= 1
         return counter
-    except Exception as err:
-        print(f"{RB}Something went wrong! {err}{RST}")
-    LOGGER.info(to_log)
 
 
 def get_all_maps(filemap: dict) -> dict:
@@ -141,6 +162,7 @@ def get_all_maps(filemap: dict) -> dict:
 
 
 def synchronize_files(all_maps):
+    # TODO: Add checks for keys and projects
     # decide what to sync based on settings
     if sync_all:
         i = 1
@@ -196,6 +218,7 @@ def _display_result_with_timeout():
 
 
 def main():
+    start_time = time()
     print("".join([BLD, "> Sync files to remote VM <".center(80, "="), RST]))
     LOGGER.info("> SYNC START <".center(50, "="))
     LOGGER.info(f"timestamp: {strftime(date_format)}")
@@ -208,12 +231,24 @@ def main():
         LOGGER.info(f"!!! {err} !!!")
         exit(1)
 
-    # display info about VM
+    # display info about VM and open persistent SSH connection
     print(f"{BLD}ssh: {RB}{username}@{host}:{port}{RST}")
     LOGGER.info(f"ssh: {username}@{host}:{port}")
     print("Fetching remote hostname...")
     hostname = run(
-        ["ssh", "-p", f"{port}", f"{username}@{host}", "echo", "$HOSTNAME"],
+        [
+            "ssh",
+            "-M",
+            "-S",
+            "/tmp/syncsuite_socket",
+            "-o",
+            "ControlPersist=20",
+            "-p",
+            f"{port}",
+            f"{username}@{host}",
+            "echo",
+            "$HOSTNAME",
+        ],
         stdout=PIPE,
     ).stdout.decode("utf-8")
     print(f"{BLD}remote hostname: {RB}{hostname}{RST}")
@@ -243,10 +278,14 @@ def main():
     else:
         i = synchronize_files(all_maps)
 
-    if i - 1 == 0:
-        print(f"{RB}\nSynced file(s) count: {i - 1}{RST}\n")
+    end_time = time()
+    if i == 1:
+        print(f"{RB}\nSynced {i - 1} file!{RST}\n")
     else:
-        print(f"{BLD}\nSynced file(s) count: {RST}{CB}{i - 1}{RST}\n")
+        plural = "s" if i > 2 else ""
+        print(
+            f"{BLD}\nSynced {CB}{i - 1}{RST}{BLD} file{plural} in {CB}{(end_time - start_time):.2f} seconds{RST}{BLD}.{RST}\n"
+        )
     LOGGER.info(f"\nSynced file(s) count: {i - 1}")
     LOGGER.info("".join(["> SYNC END <".center(50, "="), "\n\n"]))
 
@@ -261,4 +300,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    print(f"{GB}SUCCESS!{RST}")

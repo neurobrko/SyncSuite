@@ -1,5 +1,6 @@
+---
 _test:
-  4:
+  1:
     - test_files/source/file01.png
     - /home/marpauli/code/elvis/SyncSuite/test_files/target/file01.png
 'other_project':

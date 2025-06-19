@@ -1,4 +1,5 @@
 .idea
+.ruff_cache
 __pycache__/
 log/
 test_files/

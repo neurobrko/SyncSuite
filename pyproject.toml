@@ -8,6 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 pytimedinput = "^2.0.1"
+tqdm = "^4.67.1"
 
 
 [build-system]

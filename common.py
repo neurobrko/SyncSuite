@@ -6,6 +6,10 @@ from time import strftime
 
 import yaml
 
+ignored_folders = [".idea", ".git", "__pycache__", ".ruff_cache"]
+ignored_extensions = [".log"]
+ignored_files = [".gitignore", "README.md", "LICENSE", ".pre-commit-config.yaml"]
+
 
 # Common exceptions for the rsync_to_remote script
 class RepeatingKeyError(Exception):
@@ -27,8 +31,20 @@ def read_yaml(file: str | Path) -> dict:
         return yaml.safe_load(f)
 
 
+def write_yaml(file: str | Path, data: dict):
+    """
+    Writes a dictionary to a YAML file.
+
+    :param file: Path to the YAML file.
+    :param data: Data to write to the YAML file.
+    """
+    with open(file, "w") as f:
+        yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
+
+
 script_root = Path(__file__).resolve().parent
-date_format = read_yaml("sync_conf.yaml")["script"]["date_format"]
+conf_file = script_root / "sync_conf.yaml"
+date_format = read_yaml(conf_file)["script"]["date_format"]
 
 # Setup logging
 LOGGER = logging.getLogger(__name__)
@@ -70,7 +86,6 @@ class IndentedLogger:
         return filename, caller_frame.f_lineno
 
     def _format_message(self, msg: list, prefix: str, level: str) -> str:
-        print(level)
         if level == "INFO":
             log_prefix = ""
         else:
