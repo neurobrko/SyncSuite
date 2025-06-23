@@ -75,6 +75,12 @@ LOGGER.addHandler(dev_handler)
 
 
 class IndentedLogger:
+    """
+    A logger output that indents messages for better readability.
+    (It's more of a proof-of-concept, because, while the output is more
+    readable, it is not very good for copying the logs later on.)
+    """
+
     def __init__(self, logger):
         self.logger = logger
         self.log_prefix = "HH:MM:SS |"
@@ -124,3 +130,38 @@ class IndentedLogger:
 
 # Create an instance of IndentedLogger
 I_LOGGER = IndentedLogger(LOGGER)
+
+
+def compose_ssh_command(
+    persistent: bool = True, remote_cmd: list | None = None
+) -> list:
+    """
+    Compose an SSH command to use persistent connection.
+
+    :param persistent: whether to use a persistent SSH connection, True by default
+    :param remote_cmd: optional command to run on the remote host
+    :return: composed ssh command
+    """
+    conf = read_yaml(conf_file)
+    sync_suite_socket = Path("/tmp/syncsuite_socket")
+    ssh_cmd = ["ssh"]
+    ssh_creds = [
+        "-p",
+        str(conf["rsync"]["port"]),
+        f"{conf['rsync']['username']}@{conf['rsync']['host']}",
+    ]
+    if persistent:
+        if sync_suite_socket.exists():
+            ssh_cmd += ["-S", str(sync_suite_socket)]
+        else:
+            ssh_cmd += [
+                "-M",
+                "-S",
+                str(sync_suite_socket),
+                "-o",
+                "ControlPersist=20",
+            ]
+    ssh_cmd += ssh_creds
+    if remote_cmd:
+        ssh_cmd += remote_cmd
+    return ssh_cmd

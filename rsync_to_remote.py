@@ -5,7 +5,13 @@ from time import sleep, strftime, time
 
 from pytimedinput import timedKey
 
-from common import LOGGER, read_yaml, RepeatingKeyError, BadFileSyncDefinition
+from common import (
+    compose_ssh_command,
+    LOGGER,
+    read_yaml,
+    RepeatingKeyError,
+    BadFileSyncDefinition,
+)
 from pathlib import Path
 
 # define paths
@@ -21,6 +27,7 @@ config.pop("gui", None)
 # Just for the sake of PyCharm's static analysis
 host = username = port = local_root_dir = ""
 rsync_options = []
+persistent_ssh = False
 VM_check_timeout = result_timeout = default_dir = date_format = ""
 project = file_keys = ""
 sync_all = False
@@ -61,7 +68,6 @@ ap.add_argument(
 ap.add_argument(
     "-ps", "--persistent_ssh", help="Use persistent SSH connection", action="store_true"
 )
-# TODO: add option for persistent SSH connection
 
 args = ap.parse_args()
 
@@ -107,6 +113,8 @@ if args.services_restart:
     restart_services = args.services_restart
 if args.services_names:
     services = args.services_names.split(",")
+if args.persistent_ssh:
+    persistent_ssh = args.persistent_ssh
 
 # store content fo file_map.yaml
 file_map = read_yaml(filemap_file)
@@ -116,15 +124,16 @@ def get_project_maps(filemap: dict, project_name: str) -> dict:
     return filemap[project_name]
 
 
-def run_rsync(filepaths: list, counter: int, use_persistent_ssh: bool = True) -> int:
+def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
     print(f"{GN}[{counter}]{RST}")
     print(f"{CB}local file: {RST}{WU}{filepaths[0]}{RST}")
     print(f"{CB}remote file: {RST}{WU}{filepaths[1]}{RST}")
     to_log = f"\n*_* [{counter}] *_*\nsource: {filepaths[0]}\ntarget: {filepaths[1]}\nrsync output:"
     options = rsync_options[:]
-    if use_persistent_ssh:
-        options = _modify_ssh_options(options, f"-S /tmp/syncsuite_socket -p {port}")
-
+    sync_suite_socket = Path("/tmp/syncsuite_socket")
+    # persistent SSH connection should be open, but check it and fall back to non-persistent, if not
+    if persistent and sync_suite_socket.exists():
+        options = _modify_ssh_options(options, f"-S {str(sync_suite_socket)} -p {port}")
     try:
         result = run(
             ["rsync"]
@@ -167,19 +176,19 @@ def synchronize_files(all_maps):
     if sync_all:
         i = 1
         for paths in all_maps.values():
-            i = run_rsync(paths, i)
+            i = run_rsync(paths, i, persistent_ssh)
         return i
     elif project:
         file_maps = get_project_maps(file_map, project)
         i = 1
         for paths in file_maps.values():
             # print(paths)
-            i = run_rsync(paths, i)
+            i = run_rsync(paths, i, persistent_ssh)
         return i
     elif len(file_keys) > 0:
         i = 1
         for k in file_keys:
-            i = run_rsync(all_maps[k], i)
+            i = run_rsync(all_maps[k], i, persistent_ssh)
         return i
     else:
         raise BadFileSyncDefinition
@@ -189,16 +198,8 @@ def _restart_services():
     if not restart_services:
         return
     print(f"{BLD}Restarting service(s) {' '.join(services)} on remote...{RST}")
-    cmd = [
-        "ssh",
-        "-p",
-        f"{port}",
-        f"{username}@{host}",
-        "systemctl",
-        "restart",
-    ] + services
     run(
-        cmd,
+        compose_ssh_command(remote_cmd=(["systemctl", "restart"] + services)),
         stdout=PIPE,
     )
     print(
@@ -236,19 +237,7 @@ def main():
     LOGGER.info(f"ssh: {username}@{host}:{port}")
     print("Fetching remote hostname...")
     hostname = run(
-        [
-            "ssh",
-            "-M",
-            "-S",
-            "/tmp/syncsuite_socket",
-            "-o",
-            "ControlPersist=20",
-            "-p",
-            f"{port}",
-            f"{username}@{host}",
-            "echo",
-            "$HOSTNAME",
-        ],
+        compose_ssh_command(remote_cmd=["hostname"]),
         stdout=PIPE,
     ).stdout.decode("utf-8")
     print(f"{BLD}remote hostname: {RB}{hostname}{RST}")

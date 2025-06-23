@@ -1,29 +1,32 @@
----
 rsync:
   host: localhost
   username: marpauli
   port: 22
   rsync_options:
-    - -rtvz
-    - --progress
-    - -e
-    - ssh -p 11122
+  - -rtvz
+  - --progress
+  - -e
+  - ssh -p 11122
   local_root_dir: /home/marpauli/code/elvis/SyncSuite
+  persistent_ssh: true
 script:
   VM_check_timeout: 0
-  result_timeout: 0
+  result_timeout: 3
   default_browse_dir: /home/marpauli/code/elvis/SyncSuite
   date_format: '%Y-%m-%d %H:%M:%S'
 sync:
   sync_all: false
   project: null
   file_keys:
-    - 27
-    - 19
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
 services:
   restart_services: false
   services:
-    -
+  - dummy_service
 colors:
   GN: "\e[0;32m"
   GB: "\e[1;32m"

@@ -2,8 +2,9 @@
 extends: default
 rules:
   document-start: disable
+  indentation:
+    ignore:
+      - sync_conf.yaml
   line-length:
-    max: 80
-    level: warning
     ignore:
       - synced_file_map.yaml

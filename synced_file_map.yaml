@@ -1,4 +1,4 @@
-.yamllint-config.yaml: /home/marpauli/code/elvis/SyncSuite/.yamllint-config.yaml
+.yamllint-config.yaml: /home/marpauli/code/elvis/SyncSuite/.pre-commit-yamllint-config.yaml
 common.py: /home/marpauli/code/elvis/SyncSuite/common.py
 create_path_sync.py: /home/marpauli/code/elvis/SyncSuite/create_path_sync.py
 file_map.yaml: /home/marpauli/code/elvis/SyncSuite/file_map.yaml
