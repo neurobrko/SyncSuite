@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import inspect
 import logging
 from pathlib import Path
@@ -40,6 +41,20 @@ def write_yaml(file: str | Path, data: dict):
     """
     with open(file, "w") as f:
         yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
+
+
+def modify_ssh_options(options: list, ssh_options: str) -> list:
+    """
+    Modify rsync options to include custom SSH options.
+    :param options: List of rsync options.
+    :param ssh_options: Custom SSH options to include.
+    :return: Modified list of rsync options.
+    """
+    for n, item in enumerate(options):
+        if item.startswith("ssh -p"):
+            options[n] = f"ssh {ssh_options}"
+            break
+    return options
 
 
 script_root = Path(__file__).resolve().parent
@@ -132,8 +147,46 @@ class IndentedLogger:
 I_LOGGER = IndentedLogger(LOGGER)
 
 
+class CustomArgParser(argparse.ArgumentParser):
+    """
+    Custom argument parser to customize displayed help message.
+    """
+
+    def format_help(self):
+        formatter = self._get_formatter()
+
+        # description
+        formatter.add_text(self.description)
+
+        # positionals, optionals and user-defined groups
+        for action_group in self._action_groups:
+            formatter.start_section(action_group.title)
+            formatter.add_text(action_group.description)
+            formatter.add_arguments(action_group._group_actions)
+            formatter.end_section()
+
+        # epilog
+        formatter.add_text(self.epilog)
+
+        # determine help from format above
+        return formatter.format_help()
+
+
+help_message = """
+    Synchronize files to remote VM using rsync.
+    Use -c to specify configuration file or use CLI arguments.
+    Least required arguments are: -r, -u and one of -f, -p or -a.
+    You can override settings from config file using CLI arguments."""
+cap = CustomArgParser(
+    description=help_message,
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+
+
 def compose_ssh_command(
-    persistent: bool = True, remote_cmd: list | None = None
+    persistent: bool = True,
+    remote_cmd: list | None = None,
+    conf_file: str | Path = conf_file,
 ) -> list:
     """
     Compose an SSH command to use persistent connection.

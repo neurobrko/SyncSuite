@@ -1,90 +1,128 @@
-#!/usr/bin/env python3
-import argparse
+#!/usr/bin/env /home/marpauli/.cache/pypoetry/virtualenvs/syncsuite-HX8knUdy-py3.12/bin/python
 from subprocess import run, PIPE
 from time import sleep, strftime, time
 
 from pytimedinput import timedKey
 
 from common import (
+    cap,
     compose_ssh_command,
     LOGGER,
+    modify_ssh_options,
     read_yaml,
     RepeatingKeyError,
     BadFileSyncDefinition,
 )
 from pathlib import Path
 
+# terminal colors
+GN = "\033[0;32m"
+GB = "\033[1;32m"
+RN = "\033[0;31m"
+RB = "\033[1;31m"
+CN = "\033[0;36m"
+CB = "\033[1;36m"
+WU = "\033[4;37m"
+BLD = "\033[1m"
+UND = "\033[4m"
+RST = "\033[0m"
+
 # define paths
 script_root = Path(__file__).resolve().parent
-conf_file = script_root / "sync_conf.yaml"
 filemap_file = script_root / "file_map.yaml"
 
-# import configuration variables and remove GUI variables
-config = read_yaml(conf_file)
-config.pop("gui", None)
-
-# set empty variables and populate them with config values
-# Just for the sake of PyCharm's static analysis
-host = username = port = local_root_dir = ""
-rsync_options = []
-persistent_ssh = False
-VM_check_timeout = result_timeout = default_dir = date_format = ""
-project = file_keys = ""
-sync_all = False
-restart_services = False
-services = ""
-GN = GB = RN = RB = CN = CB = WU = BLD = UND = RST = ""
-
-for vals in config.values():
-    globals().update(vals)
+if not filemap_file.exists():
+    print(
+        f"{RB}Filemap file not found! Please create {filemap_file.name} in the same directory.{RST}"
+    )
+    exit(1)
 
 # setup arg parser
-ap = argparse.ArgumentParser()
-ap.add_argument("-r", "--remote", help="Remote host for synchronization")
-ap.add_argument("-u", "--username", help="Remote username")
-ap.add_argument("-s", "--ssh_port", help="SSH port")
-ap.add_argument("-l", "--local_root_dir", help="Root directory for source files")
-ap.add_argument("-vt", "--vm_timeout", help="Timeout to check VM info")
-ap.add_argument("-rt", "--result_timeout", help="Timeout to check script output")
-ap.add_argument("-d", "--date_format", help="Timestamp format for logging")
-ap.add_argument(
+cap.add_argument("-c", "--config", help="Path to configuration file")
+cap.add_argument("-m", "--map", help="Path to filemap file")
+cap.add_argument("-r", "--remote", help="Remote host for synchronization")
+cap.add_argument("-u", "--username", help="Remote username")
+cap.add_argument("-s", "--ssh_port", help="SSH port")
+cap.add_argument("-l", "--local_root_dir", help="Root directory for source files")
+cap.add_argument("-vt", "--vm_timeout", help="Timeout to check VM info")
+cap.add_argument("-rt", "--result_timeout", help="Timeout to check script output")
+cap.add_argument("-d", "--date_format", help="Timestamp format for logging")
+cap.add_argument(
     "-a", "--sync_all", help="Sync all files from all projects", action="store_true"
 )
-ap.add_argument("-p", "--project", help="Sync all files from project")
-ap.add_argument(
+cap.add_argument("-p", "--project", help="Sync all files from project")
+cap.add_argument(
     "-f", "--files", help="Sync selected files. No spaces, comma as separator."
 )
-ap.add_argument(
+cap.add_argument(
     "-sr",
     "--services_restart",
     help="Restart services on remote machine.",
     action="store_true",
 )
-ap.add_argument(
+cap.add_argument(
     "-sn",
     "--services_names",
     help="Name(s) of service(s) to restart. No spaces, comma as separator.",
 )
-ap.add_argument(
+cap.add_argument(
     "-ps", "--persistent_ssh", help="Use persistent SSH connection", action="store_true"
 )
 
-args = ap.parse_args()
+args = cap.parse_args()
 
+# check if least required arguments are set
+if not args.config:
+    print(
+        "{CB}Configuration file was not specified! Using defaults and CLI arguments.{RST}"
+    )
+    if not all(
+        [
+            args.remote,
+            args.username,
+            any([args.files, args.project, args.sync_all]),
+        ]
+    ):
+        print("{RB}Insufficient arguments provided!{RST}")
+        cap.print_help()
+        exit(1)
 
-def _modify_ssh_options(options: list, ssh_options: str) -> list:
-    """
-    Modify rsync options to include custom SSH options.
-    :param options: List of rsync options.
-    :param ssh_options: Custom SSH options to include.
-    :return: Modified list of rsync options.
-    """
-    for n, item in enumerate(options):
-        if item.startswith("ssh -p"):
-            options[n] = f"ssh {ssh_options}"
-            break
-    return options
+# set variables and populate them with defaults or empty values
+# Just for the sake of PyCharm's static analysis
+host = username = ""
+local_root_dir = default_dir = script_root
+port = 22
+rsync_options = ["-rtvz", "--progress", "-e", "ssh -p 22"]
+persistent_ssh = False
+VM_check_timeout = result_timeout = 0
+date_format = "%Y-%m-%d %H:%M:%S"
+project = file_keys = ""
+sync_all = False
+restart_services = False
+services = ""
 
+if args.config:
+    conf_file = Path(args.config)
+    if not conf_file.exists():
+        print(f"{RB}Configuration file {conf_file} not found!{RST}")
+        exit(1)
+    # import configuration variables and remove GUI variables
+    config = read_yaml(conf_file)
+    config.pop("gui", None)
+    print(f"{CB}Using configuration file: {conf_file}{RST}")
+    # update globals with config values
+    for vals in config.values():
+        globals().update(vals)
+
+# check if filemap is set from CLI and valid
+if args.map:
+    if Path(args.map).exists():
+        filemap_file = Path(args.map)
+    else:
+        print(f"{RB}Custom filemap file {args.map} not found!{RST}")
+        exit(1)
+# store content of file_map.yaml
+file_map = read_yaml(filemap_file)
 
 # override settings, if set from cli
 if args.remote:
@@ -94,7 +132,7 @@ if args.username:
 if args.ssh_port:
     port = args.ssh_port
     # if port is specified in CLI, alter rsync_options!
-    rsync_options = _modify_ssh_options(rsync_options, f"-p {port}")
+    rsync_options = modify_ssh_options(rsync_options, f"-p {port}")
 if args.local_root_dir:
     local_root_dir = args.local_root_dir
 if args.vm_timeout:
@@ -116,9 +154,6 @@ if args.services_names:
 if args.persistent_ssh:
     persistent_ssh = args.persistent_ssh
 
-# store content fo file_map.yaml
-file_map = read_yaml(filemap_file)
-
 
 def get_project_maps(filemap: dict, project_name: str) -> dict:
     return filemap[project_name]
@@ -133,7 +168,7 @@ def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
     sync_suite_socket = Path("/tmp/syncsuite_socket")
     # persistent SSH connection should be open, but check it and fall back to non-persistent, if not
     if persistent and sync_suite_socket.exists():
-        options = _modify_ssh_options(options, f"-S {str(sync_suite_socket)} -p {port}")
+        options = modify_ssh_options(options, f"-S {str(sync_suite_socket)} -p {port}")
     try:
         result = run(
             ["rsync"]
@@ -199,7 +234,9 @@ def _restart_services():
         return
     print(f"{BLD}Restarting service(s) {' '.join(services)} on remote...{RST}")
     run(
-        compose_ssh_command(remote_cmd=(["systemctl", "restart"] + services)),
+        compose_ssh_command(
+            remote_cmd=(["systemctl", "restart"] + services), conf_file=conf_file
+        ),
         stdout=PIPE,
     )
     print(
@@ -237,14 +274,13 @@ def main():
     LOGGER.info(f"ssh: {username}@{host}:{port}")
     print("Fetching remote hostname...")
     hostname = run(
-        compose_ssh_command(remote_cmd=["hostname"]),
+        compose_ssh_command(remote_cmd=["hostname"], conf_file=conf_file),
         stdout=PIPE,
     ).stdout.decode("utf-8")
     print(f"{BLD}remote hostname: {RB}{hostname}{RST}")
     LOGGER.info(f"remote hostname: {hostname.strip()}")
 
     # give user few seconds to check VM settings
-    # TODO: add countdown
     if VM_check_timeout:
         user_text, timed_out = timedKey(
             f"Correct VM? (Waiting for {VM_check_timeout} s.) [y/n]: ",

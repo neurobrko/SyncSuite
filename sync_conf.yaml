@@ -27,17 +27,6 @@ services:
   restart_services: false
   services:
   - dummy_service
-colors:
-  GN: "\e[0;32m"
-  GB: "\e[1;32m"
-  RN: "\e[0;31m"
-  RB: "\e[1;31m"
-  CN: "\e[0;36m"
-  CB: "\e[1;36m"
-  WU: "\e[4;37m"
-  BLD: "\e[1m"
-  UND: "\e[4m"
-  RST: "\e[0m"
 gui:
   sg_theme: DarkGrey11
   DEFTC: lightgrey
