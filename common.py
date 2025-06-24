@@ -11,6 +11,18 @@ ignored_folders = [".idea", ".git", "__pycache__", ".ruff_cache"]
 ignored_extensions = [".log"]
 ignored_files = [".gitignore", "README.md", "LICENSE", ".pre-commit-config.yaml"]
 
+# terminal colors
+GN = "\033[0;32m"
+GB = "\033[1;32m"
+RN = "\033[0;31m"
+RB = "\033[1;31m"
+CN = "\033[0;36m"
+CB = "\033[1;36m"
+WU = "\033[4;37m"
+BLD = "\033[1m"
+UND = "\033[4m"
+RST = "\033[0m"
+
 
 # Common exceptions for the rsync_to_remote script
 class RepeatingKeyError(Exception):
@@ -172,15 +184,14 @@ class CustomArgParser(argparse.ArgumentParser):
         return formatter.format_help()
 
 
-help_message = """
-    Synchronize files to remote VM using rsync.
-    Use -c to specify configuration file or use CLI arguments.
-    Least required arguments are: -r, -u and one of -f, -p or -a.
-    You can override settings from config file using CLI arguments."""
-cap = CustomArgParser(
-    description=help_message,
-    formatter_class=argparse.RawDescriptionHelpFormatter,
-)
+def get_all_maps(filemap: dict) -> dict:
+    all_maps = {}
+    for project_name, maps in filemap.items():
+        for key, value in maps.items():
+            if key in all_maps:
+                raise RepeatingKeyError(f"Repeating keys in project '{project_name}'")
+            all_maps[key] = value
+    return all_maps
 
 
 def compose_ssh_command(

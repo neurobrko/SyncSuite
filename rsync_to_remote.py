@@ -1,12 +1,21 @@
 #!/usr/bin/env /home/marpauli/.cache/pypoetry/virtualenvs/syncsuite-HX8knUdy-py3.12/bin/python
+from argparse import RawDescriptionHelpFormatter
 from subprocess import run, PIPE
 from time import sleep, strftime, time
 
 from pytimedinput import timedKey
 
 from common import (
-    cap,
+    BLD,
+    CB,
+    GB,
+    GN,
+    RB,
+    RST,
+    WU,
     compose_ssh_command,
+    CustomArgParser,
+    get_all_maps,
     LOGGER,
     modify_ssh_options,
     read_yaml,
@@ -14,18 +23,6 @@ from common import (
     BadFileSyncDefinition,
 )
 from pathlib import Path
-
-# terminal colors
-GN = "\033[0;32m"
-GB = "\033[1;32m"
-RN = "\033[0;31m"
-RB = "\033[1;31m"
-CN = "\033[0;36m"
-CB = "\033[1;36m"
-WU = "\033[4;37m"
-BLD = "\033[1m"
-UND = "\033[4m"
-RST = "\033[0m"
 
 # define paths
 script_root = Path(__file__).resolve().parent
@@ -38,6 +35,16 @@ if not filemap_file.exists():
     exit(1)
 
 # setup arg parser
+help_message = """
+    Synchronize files to remote VM using rsync.
+    Use -c to specify configuration file or use CLI arguments.
+    Least required arguments are: -r, -u and one of -f, -p or -a.
+    You can override settings from config file using CLI arguments."""
+cap = CustomArgParser(
+    description=help_message,
+    formatter_class=RawDescriptionHelpFormatter,
+)
+
 cap.add_argument("-c", "--config", help="Path to configuration file")
 cap.add_argument("-m", "--map", help="Path to filemap file")
 cap.add_argument("-r", "--remote", help="Remote host for synchronization")
@@ -74,7 +81,7 @@ args = cap.parse_args()
 # check if least required arguments are set
 if not args.config:
     print(
-        "{CB}Configuration file was not specified! Using defaults and CLI arguments.{RST}"
+        f"{CB}Configuration file was not specified! Using defaults and CLI arguments.{RST}"
     )
     if not all(
         [
@@ -83,9 +90,8 @@ if not args.config:
             any([args.files, args.project, args.sync_all]),
         ]
     ):
-        print("{RB}Insufficient arguments provided!{RST}")
-        cap.print_help()
-        exit(1)
+        cap.error(f"{RB}Insufficient arguments provided!{RST}")
+        cap.exit(1)
 
 # set variables and populate them with defaults or empty values
 # Just for the sake of PyCharm's static analysis
@@ -193,16 +199,6 @@ def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
             LOGGER.info(f"\n!!! {result.stderr} !!!")
             counter -= 1
         return counter
-
-
-def get_all_maps(filemap: dict) -> dict:
-    all_maps = {}
-    for project_name, maps in filemap.items():
-        for key, value in maps.items():
-            if key in all_maps:
-                raise RepeatingKeyError(f"Repeating keys in project '{project_name}'")
-            all_maps[key] = value
-    return all_maps
 
 
 def synchronize_files(all_maps):
