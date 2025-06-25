@@ -13,8 +13,10 @@ from common import (
     RB,
     RST,
     WU,
+    check_filemap,
     compose_ssh_command,
     CustomArgParser,
+    file_exists,
     get_all_maps,
     LOGGER,
     modify_ssh_options,
@@ -27,12 +29,6 @@ from pathlib import Path
 # define paths
 script_root = Path(__file__).resolve().parent
 filemap_file = script_root / "file_map.yaml"
-
-if not filemap_file.exists():
-    print(
-        f"{RB}Filemap file not found! Please create {filemap_file.name} in the same directory.{RST}"
-    )
-    exit(1)
 
 # setup arg parser
 help_message = """
@@ -95,23 +91,19 @@ if not args.config:
 
 # set variables and populate them with defaults or empty values
 # Just for the sake of PyCharm's static analysis
-host = username = ""
 local_root_dir = default_dir = script_root
 port = 22
 rsync_options = ["-rtvz", "--progress", "-e", "ssh -p 22"]
-persistent_ssh = False
-VM_check_timeout = result_timeout = 0
 date_format = "%Y-%m-%d %H:%M:%S"
-project = file_keys = ""
-sync_all = False
-restart_services = False
-services = ""
+VM_check_timeout = result_timeout = 0
+sync_all = restart_services = persistent_ssh = False
+host = username = project = file_keys = services = ""
 
 if args.config:
     conf_file = Path(args.config)
-    if not conf_file.exists():
-        print(f"{RB}Configuration file {conf_file} not found!{RST}")
-        exit(1)
+    if not file_exists(conf_file):
+        cap.error(f"{RB}Configuration file {conf_file} not found!{RST}")
+        cap.exit(1)
     # import configuration variables and remove GUI variables
     config = read_yaml(conf_file)
     config.pop("gui", None)
@@ -120,13 +112,10 @@ if args.config:
     for vals in config.values():
         globals().update(vals)
 
-# check if filemap is set from CLI and valid
-if args.map:
-    if Path(args.map).exists():
-        filemap_file = Path(args.map)
-    else:
-        print(f"{RB}Custom filemap file {args.map} not found!{RST}")
-        exit(1)
+
+# check if filemap is valid
+filemap_file = check_filemap(args.map, filemap_file, cap)
+
 # store content of file_map.yaml
 file_map = read_yaml(filemap_file)
 
@@ -316,7 +305,7 @@ def main():
 
     print(f"{GB}GoodBye!{RST}", " " * 70)
     sleep(1)
-    exit()
+    exit(0)
 
 
 if __name__ == "__main__":

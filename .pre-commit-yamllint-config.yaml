@@ -5,6 +5,7 @@ rules:
   indentation:
     ignore:
       - sync_conf.yaml
+      - file_map.yaml
   line-length:
     ignore:
       - synced_file_map.yaml

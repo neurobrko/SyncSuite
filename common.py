@@ -7,6 +7,22 @@ from time import strftime
 
 import yaml
 
+
+def read_yaml(file: str | Path) -> dict:
+    """
+    Reads a YAML file and returns its content.
+
+    :param file: Path to the YAML file.
+    :return: Content of the YAML file.
+    """
+    with open(file, "r") as f:
+        return yaml.safe_load(f)
+
+
+script_root = Path(__file__).resolve().parent
+conf_file = script_root / "sync_conf.yaml"
+date_format = read_yaml(conf_file)["script"]["date_format"]
+
 ignored_folders = [".idea", ".git", "__pycache__", ".ruff_cache"]
 ignored_extensions = [".log"]
 ignored_files = [".gitignore", "README.md", "LICENSE", ".pre-commit-config.yaml"]
@@ -22,56 +38,6 @@ WU = "\033[4;37m"
 BLD = "\033[1m"
 UND = "\033[4m"
 RST = "\033[0m"
-
-
-# Common exceptions for the rsync_to_remote script
-class RepeatingKeyError(Exception):
-    pass
-
-
-class BadFileSyncDefinition(Exception):
-    pass
-
-
-def read_yaml(file: str | Path) -> dict:
-    """
-    Reads a YAML file and returns its content.
-
-    :param file: Path to the YAML file.
-    :return: Content of the YAML file.
-    """
-    with open(file, "r") as f:
-        return yaml.safe_load(f)
-
-
-def write_yaml(file: str | Path, data: dict):
-    """
-    Writes a dictionary to a YAML file.
-
-    :param file: Path to the YAML file.
-    :param data: Data to write to the YAML file.
-    """
-    with open(file, "w") as f:
-        yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
-
-
-def modify_ssh_options(options: list, ssh_options: str) -> list:
-    """
-    Modify rsync options to include custom SSH options.
-    :param options: List of rsync options.
-    :param ssh_options: Custom SSH options to include.
-    :return: Modified list of rsync options.
-    """
-    for n, item in enumerate(options):
-        if item.startswith("ssh -p"):
-            options[n] = f"ssh {ssh_options}"
-            break
-    return options
-
-
-script_root = Path(__file__).resolve().parent
-conf_file = script_root / "sync_conf.yaml"
-date_format = read_yaml(conf_file)["script"]["date_format"]
 
 # Setup logging
 LOGGER = logging.getLogger(__name__)
@@ -159,6 +125,15 @@ class IndentedLogger:
 I_LOGGER = IndentedLogger(LOGGER)
 
 
+# Common exceptions for the rsync_to_remote script
+class RepeatingKeyError(Exception):
+    pass
+
+
+class BadFileSyncDefinition(Exception):
+    pass
+
+
 class CustomArgParser(argparse.ArgumentParser):
     """
     Custom argument parser to customize displayed help message.
@@ -182,6 +157,71 @@ class CustomArgParser(argparse.ArgumentParser):
 
         # determine help from format above
         return formatter.format_help()
+
+
+# Helper functions
+def write_yaml(file: str | Path, data: dict):
+    """
+    Writes a dictionary to a YAML file.
+
+    :param file: Path to the YAML file.
+    :param data: Data to write to the YAML file.
+    """
+    with open(file, "w") as f:
+        yaml.safe_dump(
+            data, f, default_flow_style=False, allow_unicode=True, sort_keys=False
+        )
+
+
+def modify_ssh_options(options: list, ssh_options: str) -> list:
+    """
+    Modify rsync options to include custom SSH options.
+    :param options: List of rsync options.
+    :param ssh_options: Custom SSH options to include.
+    :return: Modified list of rsync options.
+    """
+    for n, item in enumerate(options):
+        if item.startswith("ssh -p"):
+            options[n] = f"ssh {ssh_options}"
+            break
+    return options
+
+
+def file_exists(file_path: str | Path) -> bool:
+    """
+    Check if a file exists at the given path.
+
+    :param file_path: Path to the file.
+    :return: True if the file exists, False otherwise.
+    """
+    return Path(file_path).exists() and Path(file_path).is_file()
+
+
+def dir_exists(dir_path: str | Path) -> bool:
+    """
+    Check if a directory exists at the given path.
+
+    :param dir_path: Path to the directory.
+    :return: True if the directory exists, False otherwise.
+    """
+    return Path(dir_path).exists() and Path(dir_path).is_dir()
+
+
+def check_filemap(
+    args_path: str | Path, default_path: str | Path, cap: CustomArgParser
+) -> str | Path:
+    if args_path:
+        filemap_file = Path(args_path)
+        if not file_exists(filemap_file):
+            cap.error(f"{RB}You must specify a valid file map using -m or --map!{RST}")
+            cap.exit(1)
+        return filemap_file
+    if not file_exists(default_path):
+        cap.error(
+            f"{RB}Filemap file not found! Please create {default_path.name} in the same directory.{RST}"
+        )
+        cap.exit(1)
+    return default_path
 
 
 def get_all_maps(filemap: dict) -> dict:

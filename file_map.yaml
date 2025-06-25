@@ -1,18 +1,17 @@
----
 _test:
   1:
-    - test_files/source/file01.png
-    - /home/marpauli/code/elvis/SyncSuite/test_files/target/file01.png
-'other_project':
+  - test_files/source/file01.png
+  - /home/marpauli/code/elvis/SyncSuite/test_files/target/file01.png
+other_project:
   2:
-    - test_files/source/file02.png
-    - /home/marpauli/code/elvis/SyncSuite/test_files/target/file02.png
+  - test_files/source/file02.png
+  - /home/marpauli/code/elvis/SyncSuite/test_files/target/file02.png
   3:
-    - test_files/source/file03.png
-    - /home/marpauli/code/elvis/SyncSuite/test_files/target/file03.png
-  4:
-    - test_files/source/file04.png
-    - /home/marpauli/code/elvis/SyncSuite/test_files/target/file04.png
+  - test_files/source/file03.png
+  - /home/marpauli/code/elvis/SyncSuite/test_files/target/file03.png
   5:
-    - test_files/source/file05.png
-    - /home/marpauli/code/elvis/SyncSuite/test_files/target/file05.png
+  - test_files/source/file05.png
+  - /home/marpauli/code/elvis/SyncSuite/test_files/target/file05.png
+  4:
+  - test_files/source/file03.png
+  - /home/marpauli/code/elvis/SyncSuite/test_files/source/file03.png
