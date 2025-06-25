@@ -1,4 +1,5 @@
 #!/usr/bin/env /home/marpauli/.cache/pypoetry/virtualenvs/syncsuite-HX8knUdy-py3.12/bin/python
+
 from argparse import RawDescriptionHelpFormatter
 from subprocess import run, PIPE
 from time import sleep, strftime, time
@@ -118,6 +119,12 @@ filemap_file = check_filemap(args.map, filemap_file, cap)
 
 # store content of file_map.yaml
 file_map = read_yaml(filemap_file)
+try:
+    all_maps = get_all_maps(file_map)
+except RepeatingKeyError as err:
+    print(f"{RB}{err}{RST}")
+    LOGGER.info(f"!!! {err} !!!")
+    exit(1)
 
 # override settings, if set from cli
 if args.remote:
@@ -140,14 +147,31 @@ if args.sync_all:
     sync_all = True
 if args.project:
     project = args.project
+    if project not in file_map.keys():
+        cap.error(f"{RB}Project '{project}' not found in file map!{RST}")
+        cap.exit(1)
 if args.files:
-    file_keys = [int(file) for file in args.files.split(",")]
+    try:
+        file_keys = [int(file) for file in args.files.split(",")]
+    except ValueError:
+        cap.error(f"{RB}Invalid file keys provided! Use integers only.{RST}")
+        cap.exit(1)
+    if not set(file_keys).issubset(all_maps.keys()):
+        cap.error(f"{RB}Some file keys do not exist in the file map!{RST}")
+        cap.exit(1)
 if args.services_restart:
     restart_services = args.services_restart
 if args.services_names:
     services = args.services_names.split(",")
 if args.persistent_ssh:
     persistent_ssh = args.persistent_ssh
+
+ssh_config = {
+    "host": host,
+    "username": username,
+    "port": port,
+    "persistent": persistent_ssh,
+}
 
 
 def get_project_maps(filemap: dict, project_name: str) -> dict:
@@ -191,7 +215,6 @@ def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
 
 
 def synchronize_files(all_maps):
-    # TODO: Add checks for keys and projects
     # decide what to sync based on settings
     if sync_all:
         i = 1
@@ -202,7 +225,6 @@ def synchronize_files(all_maps):
         file_maps = get_project_maps(file_map, project)
         i = 1
         for paths in file_maps.values():
-            # print(paths)
             i = run_rsync(paths, i, persistent_ssh)
         return i
     elif len(file_keys) > 0:
@@ -217,11 +239,13 @@ def synchronize_files(all_maps):
 def _restart_services():
     if not restart_services:
         return
+    if not services:
+        print(f"{RB}No services specified for restart!{RST}")
+        LOGGER.info("No services specified for restart.")
+        return
     print(f"{BLD}Restarting service(s) {' '.join(services)} on remote...{RST}")
     run(
-        compose_ssh_command(
-            remote_cmd=(["systemctl", "restart"] + services), conf_file=conf_file
-        ),
+        compose_ssh_command(ssh_config, (["systemctl", "restart"] + services)),
         stdout=PIPE,
     )
     print(
@@ -245,21 +269,12 @@ def main():
     print("".join([BLD, "> Sync files to remote VM <".center(80, "="), RST]))
     LOGGER.info("> SYNC START <".center(50, "="))
     LOGGER.info(f"timestamp: {strftime(date_format)}")
-    # Check for repeating keys in file map projects
-    try:
-        all_maps = get_all_maps(file_map)
-        LOGGER.info("File map keys OK!")
-    except RepeatingKeyError as err:
-        print(f"{RB}{err}{RST}")
-        LOGGER.info(f"!!! {err} !!!")
-        exit(1)
-
     # display info about VM and open persistent SSH connection
     print(f"{BLD}ssh: {RB}{username}@{host}:{port}{RST}")
     LOGGER.info(f"ssh: {username}@{host}:{port}")
     print("Fetching remote hostname...")
     hostname = run(
-        compose_ssh_command(remote_cmd=["hostname"], conf_file=conf_file),
+        compose_ssh_command(ssh_config, ["hostname"]),
         stdout=PIPE,
     ).stdout.decode("utf-8")
     print(f"{BLD}remote hostname: {RB}{hostname}{RST}")

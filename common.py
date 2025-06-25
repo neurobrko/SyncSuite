@@ -235,9 +235,8 @@ def get_all_maps(filemap: dict) -> dict:
 
 
 def compose_ssh_command(
-    persistent: bool = True,
+    config: dict,
     remote_cmd: list | None = None,
-    conf_file: str | Path = conf_file,
 ) -> list:
     """
     Compose an SSH command to use persistent connection.
@@ -246,15 +245,14 @@ def compose_ssh_command(
     :param remote_cmd: optional command to run on the remote host
     :return: composed ssh command
     """
-    conf = read_yaml(conf_file)
     sync_suite_socket = Path("/tmp/syncsuite_socket")
     ssh_cmd = ["ssh"]
     ssh_creds = [
         "-p",
-        str(conf["rsync"]["port"]),
-        f"{conf['rsync']['username']}@{conf['rsync']['host']}",
+        str(config["port"]),
+        f"{config['username']}@{config['host']}",
     ]
-    if persistent:
+    if config["persistent"]:
         if sync_suite_socket.exists():
             ssh_cmd += ["-S", str(sync_suite_socket)]
         else:

@@ -5,7 +5,7 @@ WORK IN PROGRESS
 Script is working.
 But corner cases were not properly tested
 and still needs some cleanup and refactoring.
-Also some more verbosity.
+Also some more verbosity would be nice.
 """
 
 from argparse import RawDescriptionHelpFormatter
@@ -31,7 +31,10 @@ filemap_file = script_root / "file_map.yaml"
 
 # setup arg parser
 help_message = """
-    View or add items to the file map."""
+    View file map, add new files to it or delete existing ones.
+    When adding, use -c to specify configuration file or use CLI
+    arguments. Least required arguments are: -r, -u, -s and -l.
+    """
 cap = CustomArgParser(
     description=help_message,
     formatter_class=RawDescriptionHelpFormatter,
@@ -111,14 +114,18 @@ if args.view:
     for project, paths in file_map.items():
         print(f"[{project}]:")
         for num, path in paths.items():
-            if len(str(num)) == 1:
-                num = f" {num}"
-            print(f"    [{num}]: {Path(path[0]).name}")
+            num_str = f"{num:2}"
+            print(f"    [{num_str}]: {Path(path[0]).name}")
     exit(0)
 
 if args.info:
-    num = int(args.info)
-    if num not in (items := get_all_maps(file_map)):
+    try:
+        num = int(args.info)
+    except ValueError:
+        cap.error(f"Item '{args.info}' is not a valid number!")
+        cap.exit(1)
+    items = get_all_maps(file_map)
+    if num not in items:
         cap.error(f"Item '{num}' not found in file map!")
         cap.exit(1)
 
@@ -142,7 +149,8 @@ if args.add:
             cap.exit(1)
         config = read_yaml(args.config)
     else:
-        if not all([args.remote, args.username, args.ssh_port, args.local_root_dir]):
+        required_args = [args.remote, args.username, args.ssh_port, args.local_root_dir]
+        if not all(required_args):
             cap.error(f"{RB}Insufficient arguments provided!{RST}")
             cap.exit(1)
         config = {}
@@ -175,10 +183,9 @@ if args.add:
     project_name = get_project(args.project, file_map)
     target = synced_files.get(args.add, None)
     if target:
-        # try to find the file in generated sync_file_map.yaml
         update_file_map(project_name, args.add, target)
     else:
-        # try ssh
+        # If target was not found in synced_file_map, search for it on the remote host
         result = run(
             [
                 "ssh",
@@ -195,6 +202,7 @@ if args.add:
             stderr=STDOUT,
             text=True,
         ).stdout.splitlines()
+
         if not result:
             print(f"{RB}File '{args.add}' not found on remote host!{RST}")
             exit(1)
@@ -203,9 +211,12 @@ if args.add:
                 f"{CB}Multiple files found with the same name! \nPossible candidate(s) highlighted. \nHit '0' if none is suitable.{RST}"
             )
             for num, candidate in enumerate(result, start=1):
-                if Path(candidate).parts[-2] == source.parts[-2]:
-                    print(f"{GB}[{num}]: {candidate}{RST}")
-                print(f"[{num}]: {candidate}")
+                highlight = (
+                    f"{GB}[{num:2}]: {candidate}{RST}"
+                    if Path(candidate).parts[-2] == source.parts[-2]
+                    else f"[{num:2}]: {candidate}"
+                )
+                print(highlight)
             choice = input("Select remote file to use: ")
             try:
                 choice = int(choice)

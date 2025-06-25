@@ -1,11 +1,19 @@
-#!/usr/bin/env python3
+#!/usr/bin/env /home/marpauli/.cache/pypoetry/virtualenvs/syncsuite-HX8knUdy-py3.12/bin/python
 
 """
-Generate local yaml file containing file pairs, that will be used to speed up process of adding files
-to file map. GUI_add_map checks the yaml file first and if file is not found, then it will
-try finding the file via ssh.
-The process is quite lengthy, so try to have a lunch while it is running... ;) and repeat it once in a while.
-(~400 files takes around 6 minutes)
+############################### !!! WARNING !!! ###############################
+# This is a helpers script! It runs only when 'sync_conf.yaml'                #
+# is in the same direcotory. There are no checks, so if something goes south, #
+# you'll see some quality Traceback in the terminal. :)                       #
+###############################################################################
+
+Generate local yaml file containing file pairs, that will be used to speed up
+process of adding files to file map. GUI_add_map checks the yaml file first
+and if file is not found, then it will try finding the file via ssh.
+Result is written in 'synced_file_map.yaml' file in the scritp directory.
+
+The process is quite lengthy, so try to have a lunch while it is running... ;)
+and repeat it once in a while. (~400 files takes around 6 minutes)
 """
 
 from os import chdir
@@ -157,24 +165,28 @@ def find_match(file: Path):
         stderr=STDOUT,
         text=True,
     ).stdout.splitlines()
+
     if result:
         local_path = file.as_posix()
         relative_local_path = file.relative_to(root_dir).as_posix()
 
-        if len(result) > 1:
-            for levels in range(1, 4):
-                result = filter_results_by_top_level(result, local_path, levels)
-                if len(result) <= 1:
-                    break
-            if len(result) > 1:
-                # If still more than one store filename in multiple_matches
-                multiple_matches.append(relative_local_path)
-            elif len(result) == 1:
+        match len(result):
+            case n if n > 1:
+                for levels in range(1, 4):
+                    result = filter_results_by_top_level(result, local_path, levels)
+                    if len(result) <= 1:
+                        break
+                match len(result):
+                    case n if n > 1:
+                        multiple_matches.append(relative_local_path)
+                    case 1:
+                        file_map[relative_local_path] = result[0]
+                    case _:
+                        not_found_files.append(relative_local_path)
+            case 1:
                 file_map[relative_local_path] = result[0]
-            else:
+            case _:
                 not_found_files.append(relative_local_path)
-        else:
-            file_map[relative_local_path] = result[0]
     else:
         not_found_files.append(file.relative_to(root_dir).as_posix())
 
@@ -189,7 +201,7 @@ def main():
         and not any(file.suffix == ext for ext in ignored_extensions)
         and not any(file.name == name for name in ignored_files)
     ]
-    # Enable dry run to set ignored files, folders and extensions
+    # Enable dry run to set ignored files, folders and extensions in common.py
     if DRY_RUN:
         print(*all_files)
         print(len(all_files))

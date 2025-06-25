@@ -26,13 +26,4 @@ sync:
 services:
   restart_services: false
   services:
-  - dummy_service
-gui:
-  sg_theme: DarkGrey11
-  DEFTC: lightgrey
-  CHANGETC: red
-  ERRTC: yellow
-  text_editor: /usr/bin/gnome-text-editor
-  terminal_app: /usr/bin/gnome-terminal
-  stay_alive: true
-  errors_timeout: 3
+  -
