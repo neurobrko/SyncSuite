@@ -1,6 +1,11 @@
 #!/usr/bin/env /home/marpauli/.cache/pypoetry/virtualenvs/syncsuite-HX8knUdy-py3.12/bin/python
+
 """
-WIP
+WORK IN PROGRESS
+Script is working.
+But corner cases were not properly tested
+and still needs some cleanup and refactoring.
+Also some more verbosity.
 """
 
 from argparse import RawDescriptionHelpFormatter
@@ -8,6 +13,8 @@ from pathlib import Path
 from subprocess import PIPE, STDOUT, run
 
 from common import (
+    CB,
+    GB,
     RB,
     RST,
     CustomArgParser,
@@ -39,6 +46,7 @@ cap.add_argument(
     help="details about the file_map item",
 )
 cap.add_argument("-a", "--add", help="add a new file to the file_map")
+cap.add_argument("-d", "--delete", help="delete an item from the file_map")
 cap.add_argument(
     "-m",
     "--map",
@@ -124,6 +132,7 @@ if args.info:
     exit(0)
 
 if args.add:
+    source = Path(args.add)
     # check if least required arguments are set
     if args.config:
         if not file_exists(args.config):
@@ -149,7 +158,7 @@ if args.add:
             "You must specify a valid local root directory using -l or --local_root_dir!"
         )
         cap.exit(1)
-    if not file_exists(local_root_dir / args.add):
+    if not file_exists(local_root_dir / source):
         cap.error("You must specify a valid file to add using!")
         cap.exit(1)
 
@@ -169,8 +178,6 @@ if args.add:
         # try to find the file in generated sync_file_map.yaml
         update_file_map(project_name, args.add, target)
     else:
-        print(f"{RB}SSH search implementation is still WiP...{RST}")
-        exit(1)
         # try ssh
         result = run(
             [
@@ -181,20 +188,23 @@ if args.add:
                 "find",
                 "/",
                 "-name",
-                str(Path(args.add).name),
+                str(source.name),
                 "2>/dev/null",
             ],
             stdout=PIPE,
             stderr=STDOUT,
             text=True,
         ).stdout.splitlines()
-        print(result)
         if not result:
             print(f"{RB}File '{args.add}' not found on remote host!{RST}")
             exit(1)
         elif len(result) > 1:
-            print(f"{RB}Multiple files found with the same name!{RST}")
+            print(
+                f"{CB}Multiple files found with the same name! \nPossible candidate(s) highlighted. \nHit '0' if none is suitable.{RST}"
+            )
             for num, candidate in enumerate(result, start=1):
+                if Path(candidate).parts[-2] == source.parts[-2]:
+                    print(f"{GB}[{num}]: {candidate}{RST}")
                 print(f"[{num}]: {candidate}")
             choice = input("Select remote file to use: ")
             try:
@@ -209,3 +219,23 @@ if args.add:
         else:
             target = result[0]
             update_file_map(project_name, args.add, target)
+
+if args.delete:
+    try:
+        num = int(args.delete)
+    except ValueError:
+        cap.error(f"{RB}Invalid item number '{args.delete}'!{RST}")
+        cap.exit(1)
+    if num not in (get_all_maps(file_map)):
+        cap.error(f"Item '{num}' not found in file map!")
+        cap.exit(1)
+    # delete the item from the file map
+    for proj, items in file_map.items():
+        if num in items:
+            project = proj
+            del file_map[proj][num]
+    # if project is empty after adding, delete it too
+    if len(file_map[project]) == 0:
+        del file_map[project]
+
+    write_yaml(filemap_file, file_map)
