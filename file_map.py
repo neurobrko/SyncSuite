@@ -55,7 +55,9 @@ cap.add_argument(
     "--map",
     help="path to file to be used as source or target (depending on action)",
 )
-cap.add_argument("-l", "--local_root_dir", help="local root directory for source files")
+cap.add_argument(
+    "-l", "--local_root_dir", help="local root directory for source files"
+)
 cap.add_argument(
     "-p",
     "--project",
@@ -65,7 +67,9 @@ cap.add_argument("-c", "--config", help="Path to configuration file")
 cap.add_argument("-r", "--remote", help="Remote host for synchronization")
 cap.add_argument("-u", "--username", help="Remote username")
 cap.add_argument("-s", "--ssh_port", help="SSH port")
-cap.add_argument("-sm", "--synced_file_map", help="Path to synced_file_map.yaml")
+cap.add_argument(
+    "-sm", "--synced_file_map", help="Path to synced_file_map.yaml"
+)
 
 args = cap.parse_args()
 
@@ -75,11 +79,13 @@ filemap_file = check_filemap(args.map, filemap_file, cap)
 file_map = read_yaml(filemap_file)
 
 
-def find_next_key(keys: list | set) -> int:
+def find_next_key(keys: list[int] | set[int]) -> int:
     """Find next free key for file map dictionary."""
-    for i in range(1, len(keys) + 2):
-        if i not in keys:
-            return i
+    keys_set = set(keys)
+    i = 1
+    while i in keys_set:
+        i += 1
+    return i
 
 
 def get_project(project_name: str | None, file_map: dict) -> str:
@@ -96,13 +102,13 @@ def get_project(project_name: str | None, file_map: dict) -> str:
         return list(file_map.keys())[-1]
     else:
         cap.error(
-            f"{RB}No projects found in the file map! Provide a project name.{RST}"
+            f"{RB}No projects found in the file map! \
+            Provide a project name.{RST}"
         )
-        cap.exit(1)
 
 
 def update_file_map(project, src, trg):
-    next_key = find_next_key(get_all_maps(file_map).keys())
+    next_key = find_next_key(list(get_all_maps(file_map).keys()))
     if project not in list(file_map.keys()):
         file_map[project] = {next_key: [src, trg]}
     else:
@@ -123,11 +129,9 @@ if args.info:
         num = int(args.info)
     except ValueError:
         cap.error(f"Item '{args.info}' is not a valid number!")
-        cap.exit(1)
     items = get_all_maps(file_map)
     if num not in items:
         cap.error(f"Item '{num}' not found in file map!")
-        cap.exit(1)
 
     project_name = next(
         (project for project, paths in file_map.items() if num in paths), None
@@ -144,15 +148,19 @@ if args.add:
     if args.config:
         if not file_exists(args.config):
             cap.error(
-                f"{RB}You must specify a valid configuration file using -c or --config!{RST}"
+                f"{RB}You must specify a valid \
+            configuration file using -c or --config!{RST}"
             )
-            cap.exit(1)
         config = read_yaml(args.config)
     else:
-        required_args = [args.remote, args.username, args.ssh_port, args.local_root_dir]
+        required_args = [
+            args.remote,
+            args.username,
+            args.ssh_port,
+            args.local_root_dir,
+        ]
         if not all(required_args):
             cap.error(f"{RB}Insufficient arguments provided!{RST}")
-            cap.exit(1)
         config = {}
 
     host = config.get("rsync", {}).get("host", args.remote)
@@ -163,12 +171,11 @@ if args.add:
     )
     if not dir_exists(local_root_dir):
         cap.error(
-            "You must specify a valid local root directory using -l or --local_root_dir!"
+            "You must specify a valid local root directory using \
+            -l or --local_root_dir!"
         )
-        cap.exit(1)
     if not file_exists(local_root_dir / source):
         cap.error("You must specify a valid file to add using!")
-        cap.exit(1)
 
     synced_file_map = (
         Path(args.synced_file_map)
@@ -176,8 +183,9 @@ if args.add:
         else script_root / "synced_file_map.yaml"
     )
     if not file_exists(synced_file_map):
-        cap.error(f"{RB}Sync file map '{synced_file_map}' does not exist!{RST}")
-        cap.exit(1)
+        cap.error(
+            f"{RB}Sync file map '{synced_file_map}' does not exist!{RST}"
+        )
     synced_files = read_yaml(synced_file_map)
 
     project_name = get_project(args.project, file_map)
@@ -185,7 +193,8 @@ if args.add:
     if target:
         update_file_map(project_name, args.add, target)
     else:
-        # If target was not found in synced_file_map, search for it on the remote host
+        # If target was not found in synced_file_map,
+        # search for it on the remote host
         result = run(
             [
                 "ssh",
@@ -208,7 +217,9 @@ if args.add:
             exit(1)
         elif len(result) > 1:
             print(
-                f"{CB}Multiple files found with the same name! \nPossible candidate(s) highlighted. \nHit '0' if none is suitable.{RST}"
+                f"{CB}Multiple files found with the same name! \n\
+                Possible candidate(s) highlighted. \n\
+                Hit '0' if none is suitable.{RST}"
             )
             for num, candidate in enumerate(result, start=1):
                 highlight = (
@@ -230,17 +241,17 @@ if args.add:
         else:
             target = result[0]
             update_file_map(project_name, args.add, target)
+    exit(0)
 
 if args.delete:
     try:
         num = int(args.delete)
     except ValueError:
         cap.error(f"{RB}Invalid item number '{args.delete}'!{RST}")
-        cap.exit(1)
     if num not in (get_all_maps(file_map)):
         cap.error(f"Item '{num}' not found in file map!")
-        cap.exit(1)
     # delete the item from the file map
+    project = ""
     for proj, items in file_map.items():
         if num in items:
             project = proj
@@ -250,3 +261,7 @@ if args.delete:
         del file_map[project]
 
     write_yaml(filemap_file, file_map)
+    exit(0)
+
+print(f"{CB}Please specify at least one arguments!{RST}")
+cap.print_usage()

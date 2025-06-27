@@ -47,12 +47,19 @@ cap.add_argument("-m", "--map", help="Path to filemap file")
 cap.add_argument("-r", "--remote", help="Remote host for synchronization")
 cap.add_argument("-u", "--username", help="Remote username")
 cap.add_argument("-s", "--ssh_port", help="SSH port")
-cap.add_argument("-l", "--local_root_dir", help="Root directory for source files")
+cap.add_argument(
+    "-l", "--local_root_dir", help="Root directory for source files"
+)
 cap.add_argument("-vt", "--vm_timeout", help="Timeout to check VM info")
-cap.add_argument("-rt", "--result_timeout", help="Timeout to check script output")
+cap.add_argument(
+    "-rt", "--result_timeout", help="Timeout to check script output"
+)
 cap.add_argument("-d", "--date_format", help="Timestamp format for logging")
 cap.add_argument(
-    "-a", "--sync_all", help="Sync all files from all projects", action="store_true"
+    "-a",
+    "--sync_all",
+    help="Sync all files from all projects",
+    action="store_true",
 )
 cap.add_argument("-p", "--project", help="Sync all files from project")
 cap.add_argument(
@@ -70,7 +77,10 @@ cap.add_argument(
     help="Name(s) of service(s) to restart. No spaces, comma as separator.",
 )
 cap.add_argument(
-    "-ps", "--persistent_ssh", help="Use persistent SSH connection", action="store_true"
+    "-ps",
+    "--persistent_ssh",
+    help="Use persistent SSH connection",
+    action="store_true",
 )
 
 args = cap.parse_args()
@@ -178,7 +188,9 @@ def get_project_maps(filemap: dict, project_name: str) -> dict:
     return filemap[project_name]
 
 
-def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
+def run_rsync(
+    filepaths: list, counter: int, persistent: bool = False
+) -> int | None:
     print(f"{GN}[{counter}]{RST}")
     print(f"{CB}local file: {RST}{WU}{filepaths[0]}{RST}")
     print(f"{CB}remote file: {RST}{WU}{filepaths[1]}{RST}")
@@ -187,7 +199,9 @@ def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
     sync_suite_socket = Path("/tmp/syncsuite_socket")
     # persistent SSH connection should be open, but check it and fall back to non-persistent, if not
     if persistent and sync_suite_socket.exists():
-        options = modify_ssh_options(options, f"-S {str(sync_suite_socket)} -p {port}")
+        options = modify_ssh_options(
+            options, f"-S {str(sync_suite_socket)} -p {port}"
+        )
     try:
         result = run(
             ["rsync"]

@@ -18,6 +18,7 @@ repos:
         exclude: ^pysimplegui/PySimpleGUI\.py$
       - id: ruff-format
         name: Format with ruff
+        args: [--line-length=79]
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.37.1
     hooks:
