@@ -142,16 +142,18 @@ if args.info:
     print(f"  Target: {items[num][1]}")
     exit(0)
 
-if args.add:
-    source = Path(args.add)
-    # check if least required arguments are set
+
+def validate_config_and_args(args):
+    """
+    Validate configuration file and artguments.
+    """
     if args.config:
         if not file_exists(args.config):
             cap.error(
                 f"{RB}You must specify a valid \
             configuration file using -c or --config!{RST}"
             )
-        config = read_yaml(args.config)
+        return read_yaml(args.config)
     else:
         required_args = [
             args.remote,
@@ -161,7 +163,74 @@ if args.add:
         ]
         if not all(required_args):
             cap.error(f"{RB}Insufficient arguments provided!{RST}")
-        config = {}
+        return {}
+
+
+def validate_local_files(local_root_dir, source):
+    """
+    Validate local root directory and source file.
+    """
+    if not dir_exists(local_root_dir):
+        cap.error(
+            f"{RB}You must specify a valid local root directory using \
+            -l or --local_root_dir!{RST}"
+        )
+    if not file_exists(local_root_dir / source):
+        cap.error(f"{RB}You must specify a valid file to add using!{RST}")
+
+
+def find_remote_file(source, ssh_port, username, host) -> str | None:
+    """
+    Search for the target file on remote system.
+    """
+    result = run(
+        [
+            "ssh",
+            "-p",
+            str(ssh_port),
+            f"{username}@{host}",
+            "find",
+            "/",
+            "-name",
+            str(source.name),
+            "2>/dev/null",
+        ],
+        stdout=PIPE,
+        stderr=STDOUT,
+        text=True,
+    ).stdout.splitlines()
+
+    if not result:
+        print(f"{RB}File '{source.as_posix()}' not found on remote host!{RST}")
+        exit(1)
+    elif len(result) > 1:
+        print(
+            f"{CB}Multiple files found with the same name! \n\
+            Possible candidate(s) highlighted. \n\
+            Hit '0' if none is suitable.{RST}"
+        )
+        for num, candidate in enumerate(result, start=1):
+            highlight = (
+                f"{GB}[{num:2}]: {candidate}{RST}"
+                if Path(candidate).parts[-2] == source.parts[-2]
+                else f"[{num:2}]: {candidate}"
+            )
+            print(highlight)
+        choice = input("Select remote file to use: ")
+        try:
+            choice = int(choice)
+            if choice < 1 or choice > len(result):
+                raise ValueError
+            return result[choice - 1]
+        except ValueError:
+            print(f"{RB}Invalid choice!{RST}")
+            exit(1)
+    return result[0]
+
+
+if args.add:
+    source = Path(args.add)
+    config = validate_config_and_args(args)
 
     host = config.get("rsync", {}).get("host", args.remote)
     username = config.get("rsync", {}).get("username", args.username)
@@ -169,13 +238,8 @@ if args.add:
     local_root_dir = Path(
         config.get("rsync", {}).get("local_root_dir", args.local_root_dir)
     )
-    if not dir_exists(local_root_dir):
-        cap.error(
-            "You must specify a valid local root directory using \
-            -l or --local_root_dir!"
-        )
-    if not file_exists(local_root_dir / source):
-        cap.error("You must specify a valid file to add using!")
+
+    validate_local_files(local_root_dir, source)
 
     synced_file_map = (
         Path(args.synced_file_map)
@@ -190,57 +254,11 @@ if args.add:
 
     project_name = get_project(args.project, file_map)
     target = synced_files.get(args.add, None)
-    if target:
-        update_file_map(project_name, args.add, target)
-    else:
-        # If target was not found in synced_file_map,
-        # search for it on the remote host
-        result = run(
-            [
-                "ssh",
-                "-p",
-                str(ssh_port),
-                f"{username}@{host}",
-                "find",
-                "/",
-                "-name",
-                str(source.name),
-                "2>/dev/null",
-            ],
-            stdout=PIPE,
-            stderr=STDOUT,
-            text=True,
-        ).stdout.splitlines()
 
-        if not result:
-            print(f"{RB}File '{args.add}' not found on remote host!{RST}")
-            exit(1)
-        elif len(result) > 1:
-            print(
-                f"{CB}Multiple files found with the same name! \n\
-                Possible candidate(s) highlighted. \n\
-                Hit '0' if none is suitable.{RST}"
-            )
-            for num, candidate in enumerate(result, start=1):
-                highlight = (
-                    f"{GB}[{num:2}]: {candidate}{RST}"
-                    if Path(candidate).parts[-2] == source.parts[-2]
-                    else f"[{num:2}]: {candidate}"
-                )
-                print(highlight)
-            choice = input("Select remote file to use: ")
-            try:
-                choice = int(choice)
-                if choice < 1 or choice > len(result):
-                    raise ValueError
-                target = result[choice - 1]
-            except ValueError:
-                print(f"{RB}Invalid choice!{RST}")
-                exit(1)
-            update_file_map(project_name, args.add, target)
-        else:
-            target = result[0]
-            update_file_map(project_name, args.add, target)
+    if not target:
+        target = find_remote_file(source, ssh_port, username, host)
+
+    update_file_map(project_name, args.add, target)
     exit(0)
 
 if args.delete:
