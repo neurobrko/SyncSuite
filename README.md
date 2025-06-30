@@ -5,7 +5,7 @@
 
 ### Set of tools to manage and perform synchronization of files to remote system using rsync. Script also outputs its action to console and logs them.
 
-> **IMPORTANT:**\
+> **IMPORTANT**\
 > You need to use passwordless ssh key on remote machine to work! [Quick Guide to setup SSH w/o password](https://www.linuxtrainingacademy.com/ssh-login-without-password/)
 
 ## Features
@@ -50,8 +50,8 @@ Configuration file containing all settings to run the script. All settings in it
 - (future option for GUI) set *default_dir* to specify dir to start browsing from *local_root_dir* (LRD) is used if empty, if LRD empty script parent dir is used
 
 **SYNC SETTINGS**
-> **INFO:**\
-Override hierarchy: sync_all > project > file_keys
+> **INFO**\
+> Override hierarchy: sync_all > project > file_keys
 - *sync_all*: sync all files in file_map.yaml; value: true/false
 - *project*: sync all files from specified project, null for None
 - *file_keys*: list of file pairs to sync WARNING: Must be list even with zero or single item! hint: empty_list: []
@@ -88,7 +88,7 @@ deactivate
 cd .venv/bin
 find "$PWD" -name python3 # copy output and use it later to alter .py scripts
 ```
-> **IMPORTANT:**\
+> **IMPORTANT**\
 > To run the scripts from anywhere without activating virtual environment, edit shebang in all .py files!
 ```python
 #!/usr/bin/env /absolute/path/to/env/pyton/executable/copied/before
@@ -103,10 +103,9 @@ alias r2r='/your/sync_suite/dir/rsync_to_remote.py -c /your/conf_file/dir/sync_c
 # SyncSuite file map
 alias rfm='/your/sync_suite/dir/file_map.py -c /your/conf_file/dir/sync_conf.yaml -m /your/file_map/dir/file_map.yaml -sm /your/file_map/dir/synced_file_map.yaml'
 ```
-> **NOTE:**\
+> **NOTE**\
 > To see more *.bash_aliases magic* visit my [DevTools repo](https://github.com/neurobrko/DevTools).
 
 ## TODO
 - Create GUI with NiceGUI or at least reuse PySimpleGUI implementation from previous version
 - Add some checks and options to `create_path_sync.py`
-- Cleanup, rafactor and add a bit of verbosity to `file_map.py`

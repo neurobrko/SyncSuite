@@ -23,9 +23,23 @@ script_root = Path(__file__).resolve().parent
 conf_file = script_root / "sync_conf.yaml"
 date_format = read_yaml(conf_file)["script"]["date_format"]
 
-ignored_folders = [".idea", ".git", "__pycache__", ".ruff_cache"]
-ignored_extensions = [".log"]
-ignored_files = [".gitignore", "README.md", "LICENSE", ".pre-commit-config.yaml"]
+ignored_folders = [
+    ".idea",
+    ".git",
+    "__pycache__",
+    ".ruff_cache",
+    "icons",
+    "pics",
+    "target",
+]
+ignored_extensions = [".log", ".yaml", ".py", ".lock", ".toml"]
+ignored_files = [
+    ".gitignore",
+    "README.md",
+    "LICENSE",
+    ".pre-commit-config.yaml",
+    "requirements.txt",
+]
 
 # terminal colors
 GN = "\033[0;32m"
@@ -80,7 +94,12 @@ class IndentedLogger:
 
     @staticmethod
     def _get_caller_info():
-        caller_frame = inspect.currentframe().f_back
+        cur_frame = inspect.currentframe()
+        if not cur_frame:
+            return None, None
+        caller_frame = cur_frame.f_back
+        if not caller_frame:
+            return None, None
         filename = Path(caller_frame.f_code.co_filename).name
         return filename, caller_frame.f_lineno
 
@@ -89,35 +108,37 @@ class IndentedLogger:
             log_prefix = ""
         else:
             filename, lineno = self._get_caller_info()
-            log_prefix = f"{self.log_prefix} {level.upper()} [{filename}:{lineno}]: "
+            log_prefix = (
+                f"{self.log_prefix} {level.upper()} [{filename}:{lineno}]: "
+            )
         if prefix:
             log_prefix += prefix
-            indented_message = f"{prefix} " + ("\n" + " " * (len(log_prefix) + 1)).join(
-                msg
-            )
+            indented_message = f"{prefix} " + (
+                "\n" + " " * (len(log_prefix) + 1)
+            ).join(msg)
         else:
             indented_message = ("\n" + " " * (len(log_prefix))).join(msg)
         return indented_message
 
-    def log(self, level: str, msg: list, m_prefix: str | None = None):
+    def log(self, level: str, msg: list, m_prefix=""):
         indented_message = self._format_message(msg, m_prefix, level)
         log_method = getattr(self.logger, level.lower(), None)
         if log_method:
             log_method(indented_message)
 
-    def debug(self, msg: list, m_prefix: str | None = None):
+    def debug(self, msg: list, m_prefix=""):
         self.log("DEBUG", msg, m_prefix)
 
-    def info(self, msg: list, m_prefix: str | None = None):
+    def info(self, msg: list, m_prefix=""):
         self.log("INFO", msg, m_prefix)
 
-    def warning(self, msg: list, m_prefix: str | None = None):
+    def warning(self, msg: list, m_prefix=""):
         self.log("WARNING", msg, m_prefix)
 
-    def error(self, msg: list, m_prefix: str | None = None):
+    def error(self, msg: list, m_prefix=""):
         self.log("ERROR", msg, m_prefix)
 
-    def critical(self, msg: list, m_prefix: str | None = None):
+    def critical(self, msg: list, m_prefix=""):
         self.log("CRITICAL", msg, m_prefix)
 
 
@@ -169,7 +190,11 @@ def write_yaml(file: str | Path, data: dict):
     """
     with open(file, "w") as f:
         yaml.safe_dump(
-            data, f, default_flow_style=False, allow_unicode=True, sort_keys=False
+            data,
+            f,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=False,
         )
 
 
@@ -208,19 +233,21 @@ def dir_exists(dir_path: str | Path) -> bool:
 
 
 def check_filemap(
-    args_path: str | Path, default_path: str | Path, cap: CustomArgParser
+    args_path: str | Path, default_path: Path | str, cap: CustomArgParser
 ) -> str | Path:
     if args_path:
         filemap_file = Path(args_path)
         if not file_exists(filemap_file):
-            cap.error(f"{RB}You must specify a valid file map using -m or --map!{RST}")
-            cap.exit(1)
+            cap.error(
+                f"{RB}You must specify a valid file map \
+                using -m or --map!{RST}"
+            )
         return filemap_file
     if not file_exists(default_path):
         cap.error(
-            f"{RB}Filemap file not found! Please create {default_path.name} in the same directory.{RST}"
+            f"{RB}Filemap file not found! Please create \
+            {Path(default_path).name} in the same directory.{RST}"
         )
-        cap.exit(1)
     return default_path
 
 
@@ -229,7 +256,9 @@ def get_all_maps(filemap: dict) -> dict:
     for project_name, maps in filemap.items():
         for key, value in maps.items():
             if key in all_maps:
-                raise RepeatingKeyError(f"Repeating keys in project '{project_name}'")
+                raise RepeatingKeyError(
+                    f"Repeating keys in project '{project_name}'"
+                )
             all_maps[key] = value
     return all_maps
 
@@ -241,7 +270,7 @@ def compose_ssh_command(
     """
     Compose an SSH command to use persistent connection.
 
-    :param persistent: whether to use a persistent SSH connection, True by default
+    :param persistent: whether to use a persistent SSH connection, def: True
     :param remote_cmd: optional command to run on the remote host
     :return: composed ssh command
     """

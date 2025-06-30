@@ -1,13 +1,5 @@
 #!/usr/bin/env /home/marpauli/.cache/pypoetry/virtualenvs/syncsuite-HX8knUdy-py3.12/bin/python
 
-"""
-WORK IN PROGRESS
-Script is working.
-But corner cases were not properly tested
-and still needs some cleanup and refactoring.
-Also some more verbosity would be nice.
-"""
-
 from argparse import RawDescriptionHelpFormatter
 from pathlib import Path
 from subprocess import PIPE, STDOUT, run
@@ -88,15 +80,15 @@ def find_next_key(keys: list[int] | set[int]) -> int:
     return i
 
 
-def get_project(project_name: str | None, file_map: dict) -> str:
+def get_project(file_map: dict, project_name: str | None = None) -> str:
     """
-    Check if provided project name exists in file map and return it
+    Check if project name was provided and return it
     or return the last project name in the file map.
     :param project_name: name of the project to check
     :param file_map: file map dictionary
     :return: project name
     """
-    if project_name and project_name in file_map:
+    if project_name:
         return project_name
     elif file_map:
         return list(file_map.keys())[-1]
@@ -252,13 +244,15 @@ if args.add:
         )
     synced_files = read_yaml(synced_file_map)
 
-    project_name = get_project(args.project, file_map)
+    project_name = get_project(file_map, args.project)
     target = synced_files.get(args.add, None)
 
     if not target:
         target = find_remote_file(source, ssh_port, username, host)
 
     update_file_map(project_name, args.add, target)
+
+    print(f"{CB}Added '{source}' to project: '{project_name}'!{RST}")
     exit(0)
 
 if args.delete:
@@ -270,15 +264,22 @@ if args.delete:
         cap.error(f"Item '{num}' not found in file map!")
     # delete the item from the file map
     project = ""
+    source_file = ""
     for proj, items in file_map.items():
         if num in items:
             project = proj
+            source_file = file_map[proj][num][0]
             del file_map[proj][num]
+            break
     # if project is empty after adding, delete it too
     if len(file_map[project]) == 0:
         del file_map[project]
 
     write_yaml(filemap_file, file_map)
+    print(
+        f"{CB}Deleted '[{num}]: {source_file}' \
+    from project: '{project}'!{RST}"
+    )
     exit(0)
 
 print(f"{CB}Please specify at least one arguments!{RST}")

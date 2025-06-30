@@ -23,6 +23,10 @@ from time import sleep
 from tqdm import tqdm
 
 from common import (
+    BLD,
+    CB,
+    RB,
+    RST,
     I_LOGGER,
     ignored_extensions,
     ignored_files,
@@ -44,11 +48,6 @@ ssh_usr = sync_conf["rsync"]["username"]
 ssh_port = sync_conf["rsync"]["port"]
 root_dir = sync_conf["rsync"]["local_root_dir"]
 
-BLD = sync_conf["colors"]["BLD"]
-CB = sync_conf["colors"]["CB"]
-RB = sync_conf["colors"]["RB"]
-RST = sync_conf["colors"]["RST"]
-
 file_map = {}
 not_found_files = []
 multiple_matches = []
@@ -60,7 +59,9 @@ def get_git_branch_name() -> str:
     """
     chdir(root_dir)
     res = run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
     )
     chdir(script_root)
     if res.returncode != 0:
@@ -111,22 +112,31 @@ def get_top_level_dir(file: str | Path, levels=1) -> str:
 
 def print_and_log_results(files: list, not_found: list, multiple: list):
     print(
-        f"\n{BLD}{len(files)} local files found.{RST} {len(files) - len(not_found) - len(multiple)} "
+        f"\n{BLD}{len(files)} local files found.{RST} \
+        {len(files) - len(not_found) - len(multiple)} "
         f"files matched on remote host.{RST}"
     )
     if not_found:
         print(
-            f"{RB}{len(not_found)} files not found{RST} on remote host. See dev log for details."
+            f"{RB}{len(not_found)} files not found{RST} on remote host. \
+            See dev log for details."
         )
         I_LOGGER.warning(not_found, "Files not found on remote host:")
     if multiple:
         print(
-            f"{RB}{len(multiple)} files have multiple matches{RST} on remote host. See dev log for details."
+            f"{RB}{len(multiple)} files have multiple matches{RST} on remote \
+            host. See dev log for details."
         )
-        I_LOGGER.warning(multiple, "Multiple matches found for files on remote host:")
+        I_LOGGER.warning(
+            multiple,
+            "Multiple matches found for files on \
+        remote host:",
+        )
 
 
-def filter_results_by_top_level(results: list, local_path: str, levels: int) -> list:
+def filter_results_by_top_level(
+    results: list, local_path: str, levels: int
+) -> list:
     """
     Filter results based on top-level directory match.
 
@@ -137,14 +147,16 @@ def filter_results_by_top_level(results: list, local_path: str, levels: int) -> 
     """
     local_top_level = get_top_level_dir(local_path, levels)
     return [
-        path for path in results if local_top_level == get_top_level_dir(path, levels)
+        path
+        for path in results
+        if local_top_level == get_top_level_dir(path, levels)
     ]
 
 
 def find_match(file: Path):
     """
-    Resolve the result of the SSH command to find the best match for the local file.
-    If multiple matches are found, return the longest path match.
+    Resolve the result of the SSH command to find the best match for the local
+    file. If multiple matches are found, return the longest path match.
     If no matches are found, return None.
     """
     result = run(
@@ -173,7 +185,9 @@ def find_match(file: Path):
         match len(result):
             case n if n > 1:
                 for levels in range(1, 4):
-                    result = filter_results_by_top_level(result, local_path, levels)
+                    result = filter_results_by_top_level(
+                        result, local_path, levels
+                    )
                     if len(result) <= 1:
                         break
                 match len(result):
@@ -210,8 +224,10 @@ def main():
     branch = get_git_branch_name()
     host = get_remote_hostname()
     print(
-        f"Syncing file paths from {CB}{root_dir}{RST} \nagainst host {CB}{host}{RST} "
-        f"\nto {CB}{synced_filemap_file}{RST} \nusing branch {CB}{branch}{RST} as reference.\n"
+        f"Syncing file paths from {CB}{root_dir}{RST} \
+        \nagainst host {CB}{host}{RST} "
+        f"\nto {CB}{synced_filemap_file}{RST} \nusing branch {CB}{branch}{RST}\
+        as reference.\n"
     )
 
     # check if tmp_sync.yaml exists - indicating previously failed sync
@@ -239,7 +255,8 @@ def main():
         print(f"Error writing to temporary file map: {e}")
         exit(1)
 
-    # If the temporary file map was created successfully, move it to the synced file map
+    # If the temporary file map was created successfully,
+    # move it to the synced file map
     if synced_filemap_file.exists():
         synced_filemap_file.unlink()
     tmp_filemap_file.rename(synced_filemap_file)
