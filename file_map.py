@@ -94,8 +94,8 @@ def get_project(file_map: dict, project_name: str | None = None) -> str:
         return list(file_map.keys())[-1]
     else:
         cap.error(
-            f"{RB}No projects found in the file map! \
-            Provide a project name.{RST}"
+            f"{RB}No projects found in the file map! "
+            f"Provide a project name.{RST}"
         )
 
 
@@ -142,8 +142,8 @@ def validate_config_and_args(args):
     if args.config:
         if not file_exists(args.config):
             cap.error(
-                f"{RB}You must specify a valid \
-            configuration file using -c or --config!{RST}"
+                f"{RB}You must specify a valid "
+                f"configuration file using -c or --config!{RST}"
             )
         return read_yaml(args.config)
     else:
@@ -164,8 +164,8 @@ def validate_local_files(local_root_dir, source):
     """
     if not dir_exists(local_root_dir):
         cap.error(
-            f"{RB}You must specify a valid local root directory using \
-            -l or --local_root_dir!{RST}"
+            f"{RB}You must specify a valid local root directory using "
+            f"-l or --local_root_dir!{RST}"
         )
     if not file_exists(local_root_dir / source):
         cap.error(f"{RB}You must specify a valid file to add using!{RST}")
@@ -197,9 +197,9 @@ def find_remote_file(source, ssh_port, username, host) -> str | None:
         exit(1)
     elif len(result) > 1:
         print(
-            f"{CB}Multiple files found with the same name! \n\
-            Possible candidate(s) highlighted. \n\
-            Hit '0' if none is suitable.{RST}"
+            f"{CB}Multiple files found with the same name! \n"
+            f"Possible candidate(s) highlighted. \n"
+            f"check_filemapt '0' if none is suitable.{RST}"
         )
         for num, candidate in enumerate(result, start=1):
             highlight = (
@@ -277,8 +277,7 @@ if args.delete:
 
     write_yaml(filemap_file, file_map)
     print(
-        f"{CB}Deleted '[{num}]: {source_file}' \
-    from project: '{project}'!{RST}"
+        f"{CB}Deleted '[{num}]: {source_file}' from project: '{project}'!{RST}"
     )
     exit(0)
 

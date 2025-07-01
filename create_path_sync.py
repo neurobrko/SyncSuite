@@ -118,19 +118,18 @@ def print_and_log_results(files: list, not_found: list, multiple: list):
     )
     if not_found:
         print(
-            f"{RB}{len(not_found)} files not found{RST} on remote host. \
-            See dev log for details."
+            f"{RB}{len(not_found)} files not found{RST} on remote host. "
+            f"See dev log for details."
         )
         I_LOGGER.warning(not_found, "Files not found on remote host:")
     if multiple:
         print(
-            f"{RB}{len(multiple)} files have multiple matches{RST} on remote \
-            host. See dev log for details."
+            f"{RB}{len(multiple)} files have multiple matches{RST} on remote "
+            f"host. See dev log for details."
         )
         I_LOGGER.warning(
             multiple,
-            "Multiple matches found for files on \
-        remote host:",
+            "Multiple matches found for files on remote host:",
         )
 
 
@@ -224,10 +223,10 @@ def main():
     branch = get_git_branch_name()
     host = get_remote_hostname()
     print(
-        f"Syncing file paths from {CB}{root_dir}{RST} \
-        \nagainst host {CB}{host}{RST} "
-        f"\nto {CB}{synced_filemap_file}{RST} \nusing branch {CB}{branch}{RST}\
-        as reference.\n"
+        f"Syncing file paths from {CB}{root_dir}{RST} "
+        f"\nagainst host {CB}{host}{RST} "
+        f"\nto {CB}{synced_filemap_file}{RST} \nusing branch {CB}{branch}{RST}"
+        f"as reference.\n"
     )
 
     # check if tmp_sync.yaml exists - indicating previously failed sync

@@ -30,6 +30,7 @@ from pathlib import Path
 # define paths
 script_root = Path(__file__).resolve().parent
 filemap_file = script_root / "file_map.yaml"
+config_editor = "/home/marpauli/data/soft/nvim-linux-x86_64/bin/nvim"
 
 # setup arg parser
 help_message = """
@@ -82,13 +83,23 @@ cap.add_argument(
     help="Use persistent SSH connection",
     action="store_true",
 )
+cap.add_argument(
+    "-e", "--edit", help="Edit configuration file", action="store_true"
+)
 
 args = cap.parse_args()
+
+# if -e was set override everything and edit config file
+if args.edit and args.config:
+    if file_exists(args.config):
+        run([config_editor, args.config])
+        exit(0)
 
 # check if least required arguments are set
 if not args.config:
     print(
-        f"{CB}Configuration file was not specified! Using defaults and CLI arguments.{RST}"
+        f"{CB}Configuration file was not specified! "
+        f"Using defaults and CLI arguments.{RST}"
     )
     if not all(
         [
@@ -188,16 +199,16 @@ def get_project_maps(filemap: dict, project_name: str) -> dict:
     return filemap[project_name]
 
 
-def run_rsync(
-    filepaths: list, counter: int, persistent: bool = False
-) -> int | None:
+def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
     print(f"{GN}[{counter}]{RST}")
     print(f"{CB}local file: {RST}{WU}{filepaths[0]}{RST}")
     print(f"{CB}remote file: {RST}{WU}{filepaths[1]}{RST}")
-    to_log = f"\n*_* [{counter}] *_*\nsource: {filepaths[0]}\ntarget: {filepaths[1]}\nrsync output:"
+    to_log = f"\n*_* [{counter}] *_*\nsource: {filepaths[0]}\ntarget: "
+    f"{filepaths[1]}\nrsync output:"
     options = rsync_options[:]
     sync_suite_socket = Path("/tmp/syncsuite_socket")
-    # persistent SSH connection should be open, but check it and fall back to non-persistent, if not
+    # persistent SSH connection should be open,
+    # but check it and fall back to non-persistent, if not
     if persistent and sync_suite_socket.exists():
         options = modify_ssh_options(
             options, f"-S {str(sync_suite_socket)} -p {port}"
@@ -217,6 +228,7 @@ def run_rsync(
     except Exception as err:
         print(f"{RB}Something went wrong! {err}{RST}")
         LOGGER.error(f"Error during rsync: {err}")
+        exit(1)
     else:
         to_log = "\n".join([to_log, result.stdout])
         LOGGER.info(to_log)
@@ -228,7 +240,7 @@ def run_rsync(
         return counter
 
 
-def synchronize_files(all_maps):
+def synchronize_files(all_maps) -> int:
     # decide what to sync based on settings
     if sync_all:
         i = 1
@@ -263,7 +275,8 @@ def _restart_services():
         stdout=PIPE,
     )
     print(
-        f"{BLD}Services restarted.{RST} (Check journalctl if restart was successfull.)\n"
+        f"{BLD}Services restarted.{RST} (Check journalctl if restart was "
+        f"successfull.)\n"
     )
     LOGGER.info(f"Restarted services: {' '.join(services)}")
 
@@ -272,7 +285,8 @@ def _display_result_with_timeout():
     if result_timeout:
         for x in range(result_timeout):
             print(
-                f"{RB}Press Ctrl+C to exit or script will exit in: {(result_timeout - x)} s...{RST}",
+                f"{RB}Press Ctrl+C to exit or script will exit "
+                f"in: {(result_timeout - x)} s...{RST}",
                 end=" \r",
             )
             sleep(1)
@@ -323,7 +337,8 @@ def main():
     else:
         plural = "s" if i > 2 else ""
         print(
-            f"{BLD}\nSynced {CB}{i - 1}{RST}{BLD} file{plural} in {CB}{(end_time - start_time):.2f} seconds{RST}{BLD}.{RST}\n"
+            f"{BLD}\nSynced {CB}{i - 1}{RST}{BLD} file{plural} in "
+            f"{CB}{(end_time - start_time):.2f} seconds{RST}{BLD}.{RST}\n"
         )
     LOGGER.info(f"\nSynced file(s) count: {i - 1}")
     LOGGER.info("".join(["> SYNC END <".center(50, "="), "\n\n"]))
