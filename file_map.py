@@ -20,6 +20,7 @@ from common import (
 
 script_root = Path(__file__).resolve().parent
 filemap_file = script_root / "file_map.yaml"
+config_editor = "/home/marpauli/data/soft/nvim-linux-x86_64/bin/nvim"
 
 # setup arg parser
 help_message = """
@@ -62,12 +63,23 @@ cap.add_argument("-s", "--ssh_port", help="SSH port")
 cap.add_argument(
     "-sm", "--synced_file_map", help="Path to synced_file_map.yaml"
 )
+cap.add_argument(
+    "-e",
+    "--edit",
+    help="Edit file map by hand. NOT RECOMMENDED!",
+    action="store_true",
+)
 
 args = cap.parse_args()
 
 
 # check if file map is provided and valid
 filemap_file = check_filemap(args.map, filemap_file, cap)
+# If editing by hand was selected, override everything else
+if args.edit:
+    run([config_editor, filemap_file])
+    exit(0)
+
 file_map = read_yaml(filemap_file)
 
 

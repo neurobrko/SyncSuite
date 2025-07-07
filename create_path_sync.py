@@ -2,7 +2,7 @@
 
 """
 ############################### !!! WARNING !!! ###############################
-# This is a helpers script! It runs only when 'sync_conf.yaml'                #
+# This is a helper script! It runs only when 'sync_conf.yaml'                #
 # is in the same direcotory. There are no checks, so if something goes south, #
 # you'll see some quality Traceback in the terminal. :)                       #
 ###############################################################################
