@@ -203,8 +203,12 @@ def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
     print(f"{GN}[{counter}]{RST}")
     print(f"{CB}local file: {RST}{WU}{filepaths[0]}{RST}")
     print(f"{CB}remote file: {RST}{WU}{filepaths[1]}{RST}")
-    to_log = f"\n*_* [{counter}] *_*\nsource: {filepaths[0]}\ntarget: "
-    f"{filepaths[1]}\nrsync output:"
+    to_log = (
+        f"\n*_* [{counter}] *_*\n"
+        f"source: {filepaths[0]}\n"
+        f"target: {filepaths[1]}\n"
+        f"rsync output:"
+    )
     options = rsync_options[:]
     sync_suite_socket = Path("/tmp/syncsuite_socket")
     # persistent SSH connection should be open,
