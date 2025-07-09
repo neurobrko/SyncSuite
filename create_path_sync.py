@@ -2,32 +2,36 @@
 
 """
 ############################### !!! WARNING !!! ###############################
-# This is a helper script! It runs only when 'sync_conf.yaml'                #
-# is in the same direcotory. There are no checks, so if something goes south, #
-# you'll see some quality Traceback in the terminal. :)                       #
+# This is a helper script! There is very little checks performed, so if       #
+# something goes south, you'll see some quality Traceback in the terminal. :) #
 ###############################################################################
 
 Generate local yaml file containing file pairs, that will be used to speed up
-process of adding files to file map. GUI_add_map checks the yaml file first
-and if file is not found, then it will try finding the file via ssh.
-Result is written in 'synced_file_map.yaml' file in the scritp directory.
+process of adding files to file map. 'file_map -a' checks the synced_file_map
+first and if file is not found, then it will try finding it via ssh.
+Result is written in target file if specified, or target dir as
+'synced_file_map.yaml' file or in the script root if target is not specified.
 
 The process is quite lengthy, so try to have a lunch while it is running... ;)
 and repeat it once in a while. (~400 files takes around 6 minutes)
 """
 
+from argparse import RawDescriptionHelpFormatter
 from os import chdir
 from pathlib import Path
-from subprocess import run, PIPE, STDOUT
+from subprocess import PIPE, STDOUT, run
 from time import sleep
+
 from tqdm import tqdm
 
 from common import (
     BLD,
     CB,
+    I_LOGGER,
     RB,
     RST,
-    I_LOGGER,
+    CustomArgParser,
+    get_configuration_file,
     ignored_extensions,
     ignored_files,
     ignored_folders,
@@ -38,10 +42,61 @@ from common import (
 DRY_RUN = False
 
 script_root = Path(__file__).resolve().parent
-conf_file = script_root / "sync_conf.yaml"
-synced_filemap_file = script_root / "synced_file_map.yaml"
+config_filename = Path("sync_conf.yaml")
+synced_filemap_filefilename = Path("synced_file_map.yaml")
 tmp_filemap_file = script_root / "tmp_sync.yaml"
-sync_conf = read_yaml(conf_file)
+
+# setup arg parser
+help_message = """
+    Generate local file containing file pairs, that will be used to
+    speed up process of adding files to file map.
+    Configuration file is required and target will be overwritten
+    without warning, if already exists!"""
+cap = CustomArgParser(
+    description=help_message,
+    formatter_class=RawDescriptionHelpFormatter,
+)
+
+cap.add_argument(
+    "-cd",
+    "--config_dir",
+    help="Source dir of config file and target for result",
+)
+cap.add_argument("-c", "--config", help="Configuration file name")
+cap.add_argument("-t", "--target", help="Target file name")
+
+args = cap.parse_args()
+
+config_file = get_configuration_file(
+    args.config_dir, args.config, config_filename, True
+)
+
+
+def get_target_file():
+    if args.target:
+        target_path = Path(args.target)
+        if not target_path.suffix and target_path.is_dir():
+            return target_path / synced_filemap_filefilename
+        if (
+            target_path.suffix in [".yaml", ".yml"]
+            and target_path.parent.is_dir()
+        ):
+            return target_path
+        print(f"{RB}Invalid target!{RST}")
+        exit(1)
+    elif args.config_dir:
+        return Path(args.config_dir) / synced_filemap_filefilename
+    else:
+        print(
+            f"{CB}{synced_filemap_filefilename} will be "
+            f"saved in {script_root}!{RST}"
+        )
+        return script_root / synced_filemap_filefilename
+
+
+synced_filemap_file = get_target_file()
+
+sync_conf = read_yaml(config_file)
 
 ssh_host = sync_conf["rsync"]["host"]
 ssh_usr = sync_conf["rsync"]["username"]
@@ -223,10 +278,10 @@ def main():
     branch = get_git_branch_name()
     host = get_remote_hostname()
     print(
-        f"Syncing file paths from {CB}{root_dir}{RST} "
-        f"\nagainst host {CB}{host}{RST} "
-        f"\nto {CB}{synced_filemap_file}{RST} \nusing branch {CB}{branch}{RST}"
-        f"as reference.\n"
+        f"Syncing file paths from {CB}{root_dir}{RST} \n"
+        f"against host {CB}{host}{RST} \n"
+        f"to {CB}{synced_filemap_file.absolute()}{RST} \n"
+        f"using branch {CB}{branch}{RST} as reference.\n"
     )
 
     # check if tmp_sync.yaml exists - indicating previously failed sync

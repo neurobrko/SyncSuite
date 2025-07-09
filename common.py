@@ -20,7 +20,11 @@ def read_yaml(file: str | Path) -> dict:
 
 
 script_root = Path(__file__).resolve().parent
-conf_file = script_root / "sync_conf.yaml"
+config_filename = Path("sync_conf.yaml")
+filemap_filename = Path("file_map.yaml")
+synced_filemap_filename = Path("synced_file_map.yaml")
+config_editor = "/home/marpauli/data/soft/nvim-linux-x86_64/bin/nvim"
+conf_file = script_root / "test_files/config/sync_conf.yaml"
 date_format = read_yaml(conf_file)["script"]["date_format"]
 
 ignored_folders = [
@@ -232,23 +236,49 @@ def dir_exists(dir_path: str | Path) -> bool:
     return Path(dir_path).exists() and Path(dir_path).is_dir()
 
 
-def check_filemap(
-    args_path: str | Path, default_path: Path | str, cap: CustomArgParser
-) -> str | Path:
-    if args_path:
-        filemap_file = Path(args_path)
-        if not file_exists(filemap_file):
-            cap.error(
-                f"{RB}You must specify a valid file map \
-                using -m or --map!{RST}"
-            )
-        return filemap_file
-    if not file_exists(default_path):
-        cap.error(
-            f"{RB}Filemap file not found! Please create \
-            {Path(default_path).name} in the same directory.{RST}"
+def get_configuration_file(
+    config_dir: str | Path,
+    cli_config_file: str | Path,
+    config_filename: str | Path,
+    return_only_path: bool = False,
+    verbose: bool = True,
+) -> Path | None:
+    """
+    Return path to configuration file (or None).
+    Order of path priorities: cli_config_file > config_dir > script_root.
+
+    :param config_dir: Directory where the configuration file is expected.
+    :param cli_config_file: Path to the configuration file provided via CLI.
+    :param config_filename: Name of the configuration file to look for.
+    :param return_only_path: If True and conf file is not found,
+           print error and exit with code 1.
+    :param verbose: If True, print messages about which file is used.
+    :return: Path to the configuration file if found,
+             None otherwise (when return_only_path == False).
+    """
+
+    def _print_verbose(message: str):
+        if verbose:
+            print(message)
+
+    if cli_config_file and file_exists(cli_config_file):
+        _print_verbose(
+            f"{CB}Using {config_filename} from CLI argument...{RST}"
         )
-    return default_path
+        return Path(cli_config_file)
+    if config_dir:
+        config_file = Path(config_dir) / config_filename
+        if file_exists(config_file):
+            _print_verbose(
+                f"{CB}Using {config_filename} from config dir...{RST}"
+            )
+            return config_file
+    if file_exists(script_root / config_filename):
+        _print_verbose(f"{CB}Using {config_filename} from script root...{RST}")
+        return script_root / config_filename
+    if return_only_path:
+        print(f"{RB}No valid {config_filename} was found!{RST}")
+        exit(1)
 
 
 def get_all_maps(filemap: dict) -> dict:

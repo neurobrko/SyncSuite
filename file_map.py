@@ -10,17 +10,24 @@ from common import (
     RB,
     RST,
     CustomArgParser,
+    config_editor,
+    config_filename,
     dir_exists,
     file_exists,
-    check_filemap,
+    filemap_filename,
     get_all_maps,
+    get_configuration_file,
     read_yaml,
+    synced_filemap_filename,
     write_yaml,
 )
+# import debugpy
+#
+# debugpy.listen(5678)
+# print(f"{CB}Waiting for debugger to attach...{RST}")
+# debugpy.wait_for_client()
 
 script_root = Path(__file__).resolve().parent
-filemap_file = script_root / "file_map.yaml"
-config_editor = "/home/marpauli/data/soft/nvim-linux-x86_64/bin/nvim"
 
 # setup arg parser
 help_message = """
@@ -56,6 +63,9 @@ cap.add_argument(
     "--project",
     help="project name to which the file belongs (for adding new files)",
 )
+cap.add_argument(
+    "-cd", "--config_dir", help="Path to dir containing config file"
+)
 cap.add_argument("-c", "--config", help="Path to configuration file")
 cap.add_argument("-r", "--remote", help="Remote host for synchronization")
 cap.add_argument("-u", "--username", help="Remote username")
@@ -72,9 +82,10 @@ cap.add_argument(
 
 args = cap.parse_args()
 
+filemap_file = get_configuration_file(
+    args.config_dir, args.map, filemap_filename, return_only_path=True
+)
 
-# check if file map is provided and valid
-filemap_file = check_filemap(args.map, filemap_file, cap)
 # If editing by hand was selected, override everything else
 if args.edit:
     run([config_editor, filemap_file])
@@ -147,17 +158,12 @@ if args.info:
     exit(0)
 
 
-def validate_config_and_args(args):
+def validate_config_and_args(config_file: Path | None, args: dict) -> dict:
     """
     Validate configuration file and artguments.
     """
-    if args.config:
-        if not file_exists(args.config):
-            cap.error(
-                f"{RB}You must specify a valid "
-                f"configuration file using -c or --config!{RST}"
-            )
-        return read_yaml(args.config)
+    if config_file:
+        return read_yaml(config_file)
     else:
         required_args = [
             args.remote,
@@ -233,8 +239,11 @@ def find_remote_file(source, ssh_port, username, host) -> str | None:
 
 
 if args.add:
+    config_file = get_configuration_file(
+        args.config_dir, args.config, config_filename
+    )
     source = Path(args.add)
-    config = validate_config_and_args(args)
+    config = validate_config_and_args(config_file, args)
 
     host = config.get("rsync", {}).get("host", args.remote)
     username = config.get("rsync", {}).get("username", args.username)
@@ -245,22 +254,18 @@ if args.add:
 
     validate_local_files(local_root_dir, source)
 
-    synced_file_map = (
-        Path(args.synced_file_map)
-        if args.synced_file_map
-        else script_root / "synced_file_map.yaml"
+    synced_file_map = get_configuration_file(
+        args.config_dir, args.synced_file_map, synced_filemap_filename
     )
-    if not file_exists(synced_file_map):
-        cap.error(
-            f"{RB}Sync file map '{synced_file_map}' does not exist!{RST}"
-        )
-    synced_files = read_yaml(synced_file_map)
-
-    project_name = get_project(file_map, args.project)
-    target = synced_files.get(args.add, None)
+    target = None
+    if synced_file_map:
+        synced_files = read_yaml(synced_file_map)
+        target = synced_files.get(args.add)
 
     if not target:
         target = find_remote_file(source, ssh_port, username, host)
+
+    project_name = get_project(file_map, args.project)
 
     update_file_map(project_name, args.add, target)
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env /home/marpauli/.cache/pypoetry/virtualenvs/syncsuite-HX8knUdy-py3.12/bin/python
 
 from argparse import RawDescriptionHelpFormatter
-from subprocess import run, PIPE
+from pathlib import Path
+from subprocess import PIPE, run
 from time import sleep, strftime, time
 
 from pytimedinput import timedKey
@@ -11,26 +12,25 @@ from common import (
     CB,
     GB,
     GN,
+    LOGGER,
     RB,
     RST,
     WU,
-    check_filemap,
-    compose_ssh_command,
+    BadFileSyncDefinition,
     CustomArgParser,
-    file_exists,
+    RepeatingKeyError,
+    compose_ssh_command,
+    config_editor,
+    config_filename,
+    filemap_filename,
     get_all_maps,
-    LOGGER,
+    get_configuration_file,
     modify_ssh_options,
     read_yaml,
-    RepeatingKeyError,
-    BadFileSyncDefinition,
 )
-from pathlib import Path
 
 # define paths
 script_root = Path(__file__).resolve().parent
-filemap_file = script_root / "file_map.yaml"
-config_editor = "/home/marpauli/data/soft/nvim-linux-x86_64/bin/nvim"
 
 # setup arg parser
 help_message = """
@@ -43,6 +43,9 @@ cap = CustomArgParser(
     formatter_class=RawDescriptionHelpFormatter,
 )
 
+cap.add_argument(
+    "-cd", "--config_dir", help="Path to dir containing config files"
+)
 cap.add_argument("-c", "--config", help="Path to configuration file")
 cap.add_argument("-m", "--map", help="Path to filemap file")
 cap.add_argument("-r", "--remote", help="Remote host for synchronization")
@@ -89,14 +92,20 @@ cap.add_argument(
 
 args = cap.parse_args()
 
+filemap_file = get_configuration_file(
+    args.config_dir, args.map, filemap_filename, return_only_path=True
+)
+config_file = get_configuration_file(
+    args.config_dir, args.config, config_filename
+)
+
 # if -e was set override everything and edit config file
-if args.edit and args.config:
-    if file_exists(args.config):
-        run([config_editor, args.config])
-        exit(0)
+if args.edit and config_file:
+    run([config_editor, config_file])
+    exit(0)
 
 # check if least required arguments are set
-if not args.config:
+if not config_file:
     print(
         f"{CB}Configuration file was not specified! "
         f"Using defaults and CLI arguments.{RST}"
@@ -109,7 +118,6 @@ if not args.config:
         ]
     ):
         cap.error(f"{RB}Insufficient arguments provided!{RST}")
-        cap.exit(1)
 
 # set variables and populate them with defaults or empty values
 # Just for the sake of PyCharm's static analysis
@@ -121,22 +129,13 @@ VM_check_timeout = result_timeout = 0
 sync_all = restart_services = persistent_ssh = False
 host = username = project = file_keys = services = ""
 
-if args.config:
-    conf_file = Path(args.config)
-    if not file_exists(conf_file):
-        cap.error(f"{RB}Configuration file {conf_file} not found!{RST}")
-        cap.exit(1)
+if config_file:
     # import configuration variables and remove GUI variables
-    config = read_yaml(conf_file)
+    config = read_yaml(config_file)
     config.pop("gui", None)
-    print(f"{CB}Using configuration file: {conf_file}{RST}")
     # update globals with config values
     for vals in config.values():
         globals().update(vals)
-
-
-# check if filemap is valid
-filemap_file = check_filemap(args.map, filemap_file, cap)
 
 # store content of file_map.yaml
 file_map = read_yaml(filemap_file)
