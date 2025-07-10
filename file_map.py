@@ -41,37 +41,63 @@ cap = CustomArgParser(
 )
 
 cap.add_argument(
-    "-v", "--view", help="list filepath in file_map file", action="store_true"
+    "-v", "--view", help="List filepath in file_map file", action="store_true"
 )
 cap.add_argument(
     "-i",
     "--info",
+    metavar="NUM",
     help="details about the file_map item",
 )
-cap.add_argument("-a", "--add", help="add a new file to the file_map")
-cap.add_argument("-d", "--delete", help="delete an item from the file_map")
+cap.add_argument(
+    "-a", "--add", metavar="FILE", help="Add a new file to the file_map"
+)
+cap.add_argument(
+    "-d",
+    "--delete",
+    nargs="?",
+    const=True,
+    default=None,
+    metavar="NUM | null",
+    help="Delete an item or project from the file_map",
+)
 cap.add_argument(
     "-m",
     "--map",
-    help="path to file to be used as source or target (depending on action)",
+    metavar="FILE",
+    help="Path to file to be used as source or target (depending on action)",
 )
 cap.add_argument(
-    "-l", "--local_root_dir", help="local root directory for source files"
+    "-l",
+    "--local_root_dir",
+    metavar="DIR",
+    help="Local root directory for source files",
 )
 cap.add_argument(
     "-p",
     "--project",
-    help="project name to which the file belongs (for adding new files)",
+    metavar="NAME",
+    help="Project name to add file to or to be deleted",
 )
 cap.add_argument(
-    "-cd", "--config_dir", help="Path to dir containing config file"
+    "-cd",
+    "--config_dir",
+    metavar="DIR",
+    help="Path to dir containing config file",
 )
-cap.add_argument("-c", "--config", help="Path to configuration file")
-cap.add_argument("-r", "--remote", help="Remote host for synchronization")
-cap.add_argument("-u", "--username", help="Remote username")
-cap.add_argument("-s", "--ssh_port", help="SSH port")
 cap.add_argument(
-    "-sm", "--synced_file_map", help="Path to synced_file_map.yaml"
+    "-c", "--config", metavar="FILE", help="Path to configuration file"
+)
+cap.add_argument(
+    "-r", "--remote", metavar="HOST", help="Remote host for synchronization"
+)
+cap.add_argument("-u", "--username", metavar="USER", help="Remote username")
+cap.add_argument("-s", "--ssh_port", metavar="NUM", help="SSH port")
+cap.add_argument(
+    "-sm",
+    "--synced_file_map",
+    metavar="FILE",
+    help="Path to synced_file_map.yaml",
 )
 cap.add_argument(
     "-e",
@@ -117,8 +143,7 @@ def get_project(file_map: dict, project_name: str | None = None) -> str:
         return list(file_map.keys())[-1]
     else:
         cap.error(
-            f"{RB}No projects found in the file map! "
-            f"Provide a project name.{RST}"
+            f"{RB}No projects found in the file map! Provide a project name.{RST}"
         )
 
 
@@ -273,30 +298,41 @@ if args.add:
     exit(0)
 
 if args.delete:
-    try:
-        num = int(args.delete)
-    except ValueError:
-        cap.error(f"{RB}Invalid item number '{args.delete}'!{RST}")
-    if num not in (get_all_maps(file_map)):
-        cap.error(f"Item '{num}' not found in file map!")
-    # delete the item from the file map
-    project = ""
-    source_file = ""
-    for proj, items in file_map.items():
-        if num in items:
-            project = proj
-            source_file = file_map[proj][num][0]
-            del file_map[proj][num]
-            break
-    # if project is empty after adding, delete it too
-    if len(file_map[project]) == 0:
-        del file_map[project]
+    if isinstance(args.delete, bool):
+        if args.project:
+            if args.project in file_map:
+                file_map.pop(args.project)
+                print(f"{CB}Deleted project '{args.project}'!{RST}")
+            else:
+                cap.error(f"{RB}Project '{args.project}' not found!{RST}")
+        else:
+            cap.error(f"{RB}Please specify file or project to delete!{RST}")
+    else:
+        try:
+            num = int(args.delete)
+        except ValueError:
+            cap.error(f"{RB}Invalid item number '{args.delete}'!{RST}")
+        if num not in (get_all_maps(file_map)):
+            cap.error(f"Item '{num}' not found in file map!")
+        # delete the item from the file map
+        project = ""
+        source_file = ""
+        for proj, items in file_map.items():
+            if num in items:
+                project = proj
+                source_file = file_map[proj][num][0]
+                del file_map[proj][num]
+                break
+        # if project is empty after adding, delete it too
+        if len(file_map[project]) == 0:
+            del file_map[project]
+
+        print(
+            f"{CB}Deleted '[{num}]: {source_file}' from project: '{project}'!"
+            f"{RST}"
+        )
 
     write_yaml(filemap_file, file_map)
-    print(
-        f"{CB}Deleted '[{num}]: {source_file}' from project: '{project}'!{RST}"
-    )
     exit(0)
 
-print(f"{CB}Please specify at least one arguments!{RST}")
-cap.print_usage()
+cap.error(f"{CB}Please specify at least one arguments!{RST}")

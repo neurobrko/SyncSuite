@@ -37,7 +37,9 @@ For more details see `rsync_to_remote.py -h`
 
 Script to view and manage file map file. `-sm` search for remote counterparts
 in synced file map, before resorting to search on remote via ssh. `-cm`, `-c`
-and `-m` flags can be used same as with rsync_to_remote.py.
+and `-m` flags can be used same as with rsync_to_remote.py. With `-d`, you can
+either delete file from map by specifying its number, or if `-p` is used,
+whole project will be deleted from file map.
 For more details see `file_map.py -h`
 
 ### create_path_sync.py
