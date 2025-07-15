@@ -16,7 +16,7 @@ script:
   date_format: '%Y-%m-%d %H:%M:%S'
 sync:
   sync_all: false
-  project: null
+  task: null
   file_keys:
   - 1
   - 2

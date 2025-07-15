@@ -36,7 +36,7 @@ script_root = Path(__file__).resolve().parent
 help_message = """
     Synchronize files to remote VM using rsync.
     Use -c to specify configuration file or use CLI arguments.
-    Least required arguments are: -r, -u and one of -f, -p or -a.
+    Least required arguments are: -r, -u and one of -f, -t or -a.
     You can override settings from config file using CLI arguments."""
 cap = CustomArgParser(
     description=help_message,
@@ -62,10 +62,10 @@ cap.add_argument("-d", "--date_format", help="Timestamp format for logging")
 cap.add_argument(
     "-a",
     "--sync_all",
-    help="Sync all files from all projects",
+    help="Sync all files from all tasks",
     action="store_true",
 )
-cap.add_argument("-p", "--project", help="Sync all files from project")
+cap.add_argument("-t", "--task", help="Sync all files from task")
 cap.add_argument(
     "-f", "--files", help="Sync selected files. No spaces, comma as separator."
 )
@@ -114,7 +114,7 @@ if not config_file:
         [
             args.remote,
             args.username,
-            any([args.files, args.project, args.sync_all]),
+            any([args.files, args.task, args.sync_all]),
         ]
     ):
         cap.error(f"{RB}Insufficient arguments provided!{RST}")
@@ -127,7 +127,7 @@ rsync_options = ["-rtvz", "--progress", "-e", "ssh -p 22"]
 date_format = "%Y-%m-%d %H:%M:%S"
 VM_check_timeout = result_timeout = 0
 sync_all = restart_services = persistent_ssh = False
-host = username = project = file_keys = services = ""
+host = username = task = file_keys = services = ""
 
 if config_file:
     # import configuration variables and remove GUI variables
@@ -165,10 +165,10 @@ if args.date_format:
     date_format = args.date_format
 if args.sync_all:
     sync_all = True
-if args.project:
-    project = args.project
-    if project not in file_map.keys():
-        cap.error(f"{RB}Project '{project}' not found in file map!{RST}")
+if args.task:
+    task = args.task
+    if task not in file_map.keys():
+        cap.error(f"{RB}Task '{task}' not found in file map!{RST}")
         cap.exit(1)
 if args.files:
     try:
@@ -194,8 +194,8 @@ ssh_config = {
 }
 
 
-def get_project_maps(filemap: dict, project_name: str) -> dict:
-    return filemap[project_name]
+def get_task_maps(filemap: dict, task_name: str) -> dict:
+    return filemap[task_name]
 
 
 def run_rsync(filepaths: list, counter: int, persistent: bool = False) -> int:
@@ -250,8 +250,8 @@ def synchronize_files(all_maps) -> int:
         for paths in all_maps.values():
             i = run_rsync(paths, i, persistent_ssh)
         return i
-    elif project:
-        file_maps = get_project_maps(file_map, project)
+    elif task:
+        file_maps = get_task_maps(file_map, task)
         i = 1
         for paths in file_maps.values():
             i = run_rsync(paths, i, persistent_ssh)

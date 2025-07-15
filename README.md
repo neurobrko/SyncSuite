@@ -13,7 +13,7 @@ system using rsync. Script also outputs its action to console and logs them.**
 
 ## Features
 
-- Synchronize selected files, whole projects or all files to remote machine
+- Synchronize selected files, whole tasks or all files to remote machine
 - `-cm` flag allows you to specify dir containing config and file map files
 - `-c` and `-m` flags allow you to use different configurations or filemaps
 - Synchronization can run in ssh multiplex mode, with socket staying alive
@@ -21,7 +21,7 @@ for 20 seconds after last command
 - Run using script via CLI with options
 - Restart service(s) on remote machine after sync
 - Add files to path mapping dictionary with ability to find their
-counterparts on remote and group them in projects
+counterparts on remote and group them in tasks
 - Script logs each days work in separate file.
 
 ## Components
@@ -38,8 +38,8 @@ For more details see `rsync_to_remote.py -h`
 Script to view and manage file map file. `-sm` search for remote counterparts
 in synced file map, before resorting to search on remote via ssh. `-cm`, `-c`
 and `-m` flags can be used same as with rsync_to_remote.py. With `-d`, you can
-either delete file from map by specifying its number, or if `-p` is used,
-whole project will be deleted from file map.
+either delete file from map by specifying its number, or if `-t` is used,
+whole task will be deleted from file map.
 For more details see `file_map.py -h`
 
 ### create_path_sync.py
@@ -87,10 +87,10 @@ is used
 #### SYNC SETTINGS
 
 > **INFO**\
-> Override hierarchy: sync_all > project > file_keys
+> Override hierarchy: sync_all > task > file_keys
 
 - *sync_all*: sync all files in file_map.yaml; value: true/false
-- *project*: sync all files from specified project, null for None
+- *task*: sync all files from specified task, null for None
 - *file_keys*: list of file pairs to sync WARNING: Must be list even with zero
 or single item! hint: empty_list: []
 
@@ -103,10 +103,10 @@ be duffixed with '.service' or '.target'.
 
 ### test_files/config/file_map.yaml
 
-File contains local <-> remote filepaths pairs grouped into projects.
+File contains local <-> remote filepaths pairs grouped into tasks.
 Local paths are relative to working or repo direcory,
 remote are full paths. You should **NEVER** edit it by hand!\
-**format:** {project: [source/path, target/path]}
+**format:** {task: [source/path, target/path]}
 
 ### test_files/config/synced_file_map.yaml
 
@@ -162,5 +162,6 @@ alias rfm='/your/sync_suite/dir/file_map.py -cm /your/config/dir'
 
 ## TODO
 
+- Remove `ssh -p ...` from `rsync options` and amend rsync command accordingly
 - Create GUI with NiceGUI or at least reuse PySimpleGUI
 implementation from previous version
