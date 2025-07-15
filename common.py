@@ -283,11 +283,11 @@ def get_configuration_file(
 
 def get_all_maps(filemap: dict) -> dict:
     all_maps = {}
-    for project_name, maps in filemap.items():
+    for task_name, maps in filemap.items():
         for key, value in maps.items():
             if key in all_maps:
                 raise RepeatingKeyError(
-                    f"Repeating keys in project '{project_name}'"
+                    f"Repeating keys in task '{task_name}'"
                 )
             all_maps[key] = value
     return all_maps

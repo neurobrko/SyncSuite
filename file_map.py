@@ -58,8 +58,8 @@ cap.add_argument(
     nargs="?",
     const=True,
     default=None,
-    metavar="NUM | null",
-    help="Delete an item or project from the file_map",
+    metavar="NUM | STR | null",
+    help="Delete an item or task from the file_map",
 )
 cap.add_argument(
     "-m",
@@ -74,10 +74,10 @@ cap.add_argument(
     help="Local root directory for source files",
 )
 cap.add_argument(
-    "-p",
-    "--project",
+    "-t",
+    "--task",
     metavar="NAME",
-    help="Project name to add file to or to be deleted",
+    help="Task name to add file to or to be deleted",
 )
 cap.add_argument(
     "-cd",
@@ -129,36 +129,36 @@ def find_next_key(keys: list[int] | set[int]) -> int:
     return i
 
 
-def get_project(file_map: dict, project_name: str | None = None) -> str:
+def get_task(file_map: dict, task_name: str | None = None) -> str:
     """
-    Check if project name was provided and return it
-    or return the last project name in the file map.
-    :param project_name: name of the project to check
+    Check if task name was provided and return it
+    or return the last task name in the file map.
+    :param task_name: name of the task to check
     :param file_map: file map dictionary
-    :return: project name
+    :return: task name
     """
-    if project_name:
-        return project_name
+    if task_name:
+        return task_name
     elif file_map:
         return list(file_map.keys())[-1]
     else:
         cap.error(
-            f"{RB}No projects found in the file map! Provide a project name.{RST}"
+            f"{RB}No task found in the file map! Provide a task name.{RST}"
         )
 
 
-def update_file_map(project, src, trg):
+def update_file_map(task, src, trg):
     next_key = find_next_key(list(get_all_maps(file_map).keys()))
-    if project not in list(file_map.keys()):
-        file_map[project] = {next_key: [src, trg]}
+    if task not in list(file_map.keys()):
+        file_map[task] = {next_key: [src, trg]}
     else:
-        file_map[project][next_key] = [src, trg]
+        file_map[task][next_key] = [src, trg]
     write_yaml(filemap_file, file_map)
 
 
 if args.view:
-    for project, paths in file_map.items():
-        print(f"[{project}]:")
+    for task, paths in file_map.items():
+        print(f"[{task}]:")
         for num, path in paths.items():
             num_str = f"{num:2}"
             print(f"    [{num_str}]: {Path(path[0]).name}")
@@ -173,11 +173,11 @@ if args.info:
     if num not in items:
         cap.error(f"Item '{num}' not found in file map!")
 
-    project_name = next(
-        (project for project, paths in file_map.items() if num in paths), None
+    task_name = next(
+        (task for task, paths in file_map.items() if num in paths), None
     )
 
-    print(f"Item '{num}' in project '{project_name}':")
+    print(f"Item '{num}' in task '{task_name}':")
     print(f"  Source: {items[num][0]}")
     print(f"  Target: {items[num][1]}")
     exit(0)
@@ -288,25 +288,28 @@ if args.add:
         target = synced_files.get(args.add)
 
     if not target:
+        print(
+            f"{CB}File not found in Synced filemap. Performing ssh search...{RST}"
+        )
         target = find_remote_file(source, ssh_port, username, host)
 
-    project_name = get_project(file_map, args.project)
+    task_name = get_task(file_map, args.task)
 
-    update_file_map(project_name, args.add, target)
+    update_file_map(task_name, args.add, target)
 
-    print(f"{CB}Added '{source}' to project: '{project_name}'!{RST}")
+    print(f"{CB}Added '{source}' to task: '{task_name}'!{RST}")
     exit(0)
 
 if args.delete:
     if isinstance(args.delete, bool):
-        if args.project:
-            if args.project in file_map:
-                file_map.pop(args.project)
-                print(f"{CB}Deleted project '{args.project}'!{RST}")
+        if args.task:
+            if args.task in file_map:
+                file_map.pop(args.task)
+                print(f"{CB}Deleted task '{args.task}'!{RST}")
             else:
-                cap.error(f"{RB}Project '{args.project}' not found!{RST}")
+                cap.error(f"{RB}Task '{args.task}' not found!{RST}")
         else:
-            cap.error(f"{RB}Please specify file or project to delete!{RST}")
+            cap.error(f"{RB}Please specify file or task to delete!{RST}")
     else:
         try:
             num = int(args.delete)
@@ -315,21 +318,20 @@ if args.delete:
         if num not in (get_all_maps(file_map)):
             cap.error(f"Item '{num}' not found in file map!")
         # delete the item from the file map
-        project = ""
+        task = ""
         source_file = ""
-        for proj, items in file_map.items():
+        for tsk, items in file_map.items():
             if num in items:
-                project = proj
-                source_file = file_map[proj][num][0]
-                del file_map[proj][num]
+                task = tsk
+                source_file = file_map[tsk][num][0]
+                del file_map[tsk][num]
                 break
-        # if project is empty after adding, delete it too
-        if len(file_map[project]) == 0:
-            del file_map[project]
+        # if task is empty after adding, delete it too
+        if len(file_map[tsk]) == 0:
+            del file_map[tsk]
 
         print(
-            f"{CB}Deleted '[{num}]: {source_file}' from project: '{project}'!"
-            f"{RST}"
+            f"{CB}Deleted '[{num}]: {source_file}' from task: '{task}'!{RST}"
         )
 
     write_yaml(filemap_file, file_map)
