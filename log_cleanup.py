@@ -28,7 +28,9 @@ def log_cleanup():
     for file in log_dir.iterdir():
         if file.is_file():
             persistence = (
-                DEV_LOG_PERSISTENCE if "r2r-dev" in file.name else INFO_LOG_PERSISTENCE
+                DEV_LOG_PERSISTENCE
+                if "r2r-dev" in file.name
+                else INFO_LOG_PERSISTENCE
             )
             if now - file.stat().st_mtime > persistence * 86400:
                 file.unlink()

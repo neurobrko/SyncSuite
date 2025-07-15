@@ -8,7 +8,9 @@ size = 96, 96
 
 script_root = path.dirname(path.realpath(__file__))
 
-file_list = [file for file in listdir(script_root) if file.lower().endswith(".png")]
+file_list = [
+    file for file in listdir(script_root) if file.lower().endswith(".png")
+]
 
 for file in file_list:
     newfile = list(path.splitext(file))
