@@ -37,6 +37,7 @@ button {
 }
 </style>
 """)
+ui.html("<style>.multi-line-notification { white-space: pre-line; }</style>")
 ui.dark_mode(True)
 
 with ui.tabs().classes("w-full") as tabs:
@@ -49,10 +50,11 @@ with ui.tabs().classes("w-full") as tabs:
 with ui.footer().classes():
     footer = ui.label(current_config.config_footer)
 
-with ui.tab_panels(tabs, value=prj).classes("w-full") as tab_panels:
+with ui.tab_panels(tabs, value=fmp).classes("w-full") as tab_panels:
     with ui.tab_panel(r2r) as r2r_panel:
         r2r_tab()
     with ui.tab_panel(fmp) as fmp_panel:
+        fmp_panel.classes("gap-0")
         fmp_tab(current_config)
     with ui.tab_panel(cfg) as cfg_panel:
         cfg_tab()
