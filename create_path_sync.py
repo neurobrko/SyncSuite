@@ -102,6 +102,7 @@ ssh_host = sync_conf["rsync"]["host"]
 ssh_usr = sync_conf["rsync"]["username"]
 ssh_port = sync_conf["rsync"]["port"]
 root_dir = sync_conf["rsync"]["local_root_dir"]
+remote_dir = sync_conf["script"]["default_browse_dir"]
 
 file_map = {}
 not_found_files = []
@@ -222,7 +223,7 @@ def find_match(file: Path):
             str(ssh_port),
             f"{ssh_usr}@{ssh_host}",
             "find",
-            "/",
+            remote_dir,
             "-name",
             str(file.name),
             "2>/dev/null",
@@ -280,7 +281,7 @@ def main():
     print(
         f"Syncing file paths from {CB}{root_dir}{RST} \n"
         f"against host {CB}{host}{RST} \n"
-        f"to {CB}{synced_filemap_file.absolute()}{RST} \n"
+        f"to {CB}{synced_filemap_file.resolve()}{RST} \n"
         f"using branch {CB}{branch}{RST} as reference.\n"
     )
 

@@ -211,10 +211,12 @@ def validate_local_files(local_root_dir, source):
             f"-l or --local_root_dir!{RST}"
         )
     if not file_exists(local_root_dir / source):
-        cap.error(f"{RB}You must specify a valid file to add using!{RST}")
+        cap.error(f"{RB}You must specify a valid file to add!{RST}")
 
 
-def find_remote_file(source, ssh_port, username, host) -> str | None:
+def find_remote_file(
+    source, ssh_port, username, host, remote_dir
+) -> str | None:
     """
     Search for the target file on remote system.
     """
@@ -225,7 +227,7 @@ def find_remote_file(source, ssh_port, username, host) -> str | None:
             str(ssh_port),
             f"{username}@{host}",
             "find",
-            "/",
+            remote_dir,
             "-name",
             str(source.name),
             "2>/dev/null",
@@ -240,9 +242,9 @@ def find_remote_file(source, ssh_port, username, host) -> str | None:
         exit(1)
     elif len(result) > 1:
         print(
-            f"{CB}Multiple files found with the same name! \n"
-            f"Possible candidate(s) highlighted. \n"
-            f"check_filemapt '0' if none is suitable.{RST}"
+            f"{CB}Multiple files found with the same name!{RST}"
+            f" (Possible candidate(s) highlighted.) \n"
+            f"{CB}Type '0' if none is suitable.{RST}"
         )
         for num, candidate in enumerate(result, start=1):
             highlight = (
@@ -254,6 +256,9 @@ def find_remote_file(source, ssh_port, username, host) -> str | None:
         choice = input("Select remote file to use: ")
         try:
             choice = int(choice)
+            if choice == 0:
+                print(f"{CB}No candidate selected.{RST}")
+                exit(0)
             if choice < 1 or choice > len(result):
                 raise ValueError
             return result[choice - 1]
@@ -276,6 +281,7 @@ if args.add:
     local_root_dir = Path(
         config.get("rsync", {}).get("local_root_dir", args.local_root_dir)
     )
+    remote_browse_dir = config.get("script", {}).get("default_browse_dir", "/")
 
     validate_local_files(local_root_dir, source)
 
@@ -291,7 +297,9 @@ if args.add:
         print(
             f"{CB}File not found in Synced filemap. Performing ssh search...{RST}"
         )
-        target = find_remote_file(source, ssh_port, username, host)
+        target = find_remote_file(
+            source, ssh_port, username, host, remote_browse_dir
+        )
 
     task_name = get_task(file_map, args.task)
 
