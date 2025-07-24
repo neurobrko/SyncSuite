@@ -2,7 +2,7 @@
 
 from argparse import RawDescriptionHelpFormatter
 from pathlib import Path
-from subprocess import PIPE, STDOUT, run
+from subprocess import run
 
 from common import (
     CB,
@@ -12,6 +12,7 @@ from common import (
     CustomArgParser,
     config_editor,
     config_filename,
+    get_remote_files,
     dir_exists,
     file_exists,
     filemap_filename,
@@ -19,13 +20,9 @@ from common import (
     get_configuration_file,
     read_yaml,
     synced_filemap_filename,
+    update_file_map,
     write_yaml,
 )
-# import debugpy
-#
-# debugpy.listen(5678)
-# print(f"{CB}Waiting for debugger to attach...{RST}")
-# debugpy.wait_for_client()
 
 script_root = Path(__file__).resolve().parent
 
@@ -105,7 +102,12 @@ cap.add_argument(
     help="Edit file map by hand. NOT RECOMMENDED!",
     action="store_true",
 )
-
+cap.add_argument(
+    "-g",
+    "--gui",
+    action="store_true",
+    help="Suppress some output to use with GUI",
+)
 args = cap.parse_args()
 
 filemap_file = get_configuration_file(
@@ -118,15 +120,6 @@ if args.edit:
     exit(0)
 
 file_map = read_yaml(filemap_file)
-
-
-def find_next_key(keys: list[int] | set[int]) -> int:
-    """Find next free key for file map dictionary."""
-    keys_set = set(keys)
-    i = 1
-    while i in keys_set:
-        i += 1
-    return i
 
 
 def get_task(file_map: dict, task_name: str | None = None) -> str:
@@ -145,15 +138,6 @@ def get_task(file_map: dict, task_name: str | None = None) -> str:
         cap.error(
             f"{RB}No task found in the file map! Provide a task name.{RST}"
         )
-
-
-def update_file_map(task, src, trg):
-    next_key = find_next_key(list(get_all_maps(file_map).keys()))
-    if task not in list(file_map.keys()):
-        file_map[task] = {next_key: [src, trg]}
-    else:
-        file_map[task][next_key] = [src, trg]
-    write_yaml(filemap_file, file_map)
 
 
 if args.view:
@@ -217,30 +201,11 @@ def validate_local_files(local_root_dir, source):
 def find_remote_file(
     source, ssh_port, username, host, remote_dir
 ) -> str | None:
-    """
-    Search for the target file on remote system.
-    """
-    result = run(
-        [
-            "ssh",
-            "-p",
-            str(ssh_port),
-            f"{username}@{host}",
-            "find",
-            remote_dir,
-            "-name",
-            str(source.name),
-            "2>/dev/null",
-        ],
-        stdout=PIPE,
-        stderr=STDOUT,
-        text=True,
-    ).stdout.splitlines()
-
+    result = get_remote_files(source, ssh_port, username, host, remote_dir)
     if not result:
         print(f"{RB}File '{source.as_posix()}' not found on remote host!{RST}")
         exit(1)
-    elif len(result) > 1:
+    if len(result) > 1:
         print(
             f"{CB}Multiple files found with the same name!{RST}"
             f" (Possible candidate(s) highlighted.) \n"
@@ -303,7 +268,7 @@ if args.add:
 
     task_name = get_task(file_map, args.task)
 
-    update_file_map(task_name, args.add, target)
+    update_file_map(task_name, args.add, target, file_map, filemap_file)
 
     print(f"{CB}Added '{source}' to task: '{task_name}'!{RST}")
     exit(0)

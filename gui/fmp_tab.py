@@ -1,8 +1,25 @@
 from nicegui import app, ui
 from pathlib import Path
-from common import read_yaml, write_yaml
+from common import (
+    get_remote_files,
+    read_yaml,
+    update_file_map,
+    write_yaml,
+)
 from gui.gui_common import path_ellipsis
 
+# NOTE:
+# KNOWN BUGS:
+# - when all keys are deleted from task, empty task remains
+#
+# TODO:
+# - do some MORE TESTING!
+# - when deleting task, there should be either separate tab,
+#   or the tab should be "switched" to delete mode to prevent accidental
+#   deletion of selected file keys from config_file.
+# - switch automatically to R2R tab after hitting use keys button
+# - figure out, wheter it's possible to add some delay to tooltip or move
+#   to some non-blocking position
 
 # set global variables
 tasks_values = {}
@@ -22,28 +39,109 @@ def file_callback(num, value):
     files_values[num] = value
 
 
-def use_keys():
+def use_keys(config, config_file):
     selected_keys = [
         key for key, value in files_values.items() if value if value
     ]
-
-    if selected_keys:
-        ui.notify(
-            f"WIP:: SELECTED KEYS: {','.join([str(i) for i in selected_keys])}"
-        )
-    else:
-        ui.notify("WIP:: No keys were selected!")
+    config["sync"]["file_keys"] = selected_keys
+    write_yaml(config_file, config)
+    ui.notify("Keys updated.")
 
 
-async def choose_file():
+async def choose_file(local_root_dir=None):
     new_file = await app.native.main_window.create_file_dialog(
-        allow_multiple=False
+        allow_multiple=False, directory=local_root_dir
     )
-    ui.notify(f"Selected file: {new_file}")
+    new_file = Path(new_file[0]).relative_to(local_root_dir)
+    return new_file.as_posix()
 
 
-async def add_file():
-    await choose_file()
+async def get_local_file(local_file, config):
+    local_file.value = await choose_file(config["rsync"]["local_root_dir"])
+    local_file.update()
+
+
+def _set_remote_file(remote_file, value):
+    remote_file.value = value
+    remote_file.update()
+
+
+def find_remote_file(
+    remote_file, local_file, synced_file, config, multi_result
+):
+    multi_result.set_visibility(False)
+    if not local_file.value:
+        ui.notify("Please select a local file first!")
+        return
+    if synced_file:
+        _set_remote_file(remote_file, synced_file)
+        ui.notify("Remote file found in synced filemap.")
+        return
+    result = get_remote_files(
+        Path(local_file.value),
+        config["rsync"]["port"],
+        config["rsync"]["username"],
+        config["rsync"]["host"],
+        config["script"]["default_browse_dir"],
+    )
+    if not result:
+        ui.notify("Nothing found!")
+        return
+    if len(result) > 1:
+        multi_result.clear()
+        multi_result.set_visibility(True)
+        with multi_result:
+            ui.label("Multiple remote files found via ssh:").classes(
+                "text-md font-semibold"
+            )
+            with ui.list().props("dense"):
+                for item in result:
+                    ui.item(
+                        Path(item)
+                        .relative_to(
+                            Path(config["script"]["default_browse_dir"])
+                        )
+                        .as_posix(),
+                        on_click=lambda item=item: (
+                            _set_remote_file(remote_file, item),
+                            multi_result.set_visibility(False),
+                        ),
+                    )
+        return
+    _set_remote_file(remote_file, result[0])
+    ui.notify("Remote file found via ssh.")
+
+
+def _reload_panel(cfg, panel):
+    panel.clear()
+    with panel:
+        fmp_tab(cfg, panel)
+
+
+def add_file(
+    local_file,
+    remote_file,
+    file_map,
+    filemap_file,
+    to_task,
+    new_task,
+    cfg,
+    panel,
+    dialog,
+):
+    if not local_file.value:
+        ui.notify("Please select a local file first!")
+        return
+    if not remote_file.value:
+        ui.notify("No remote file specified!")
+        return
+    use_task = new_task if new_task else to_task
+    update_file_map(
+        use_task, local_file.value, remote_file.value, file_map, filemap_file
+    )
+    _reload_panel(cfg, panel)
+    dialog.close()
+    ui.notify("File added to filemap.")
 
 
 def delete_keys(fmp, fmp_file, cfg, cfg_file, selected_tasks, selected_keys):
@@ -120,11 +218,13 @@ def delete_dialog(fmp, fmp_file, cfg, cfg_file):
     confirm_del.open()
 
 
-def fmp_tab(cfg):
+def fmp_tab(cfg, panel=None):
     filemap_file = cfg.filemap_file
     file_map = read_yaml(filemap_file)
+    tasks = [k for k in file_map.keys()]
     config_file = cfg.config_file
     config = read_yaml(config_file)
+    synced_filemap = read_yaml(cfg.synced_filemap_file)
     global cfg_selected_keys
     cfg_selected_keys = [k for k in config.get("sync").get("file_keys", [])]
 
@@ -164,11 +264,60 @@ def fmp_tab(cfg):
             "text-lg font-semibold"
         ).style("color: yellow;")
         ui.label("Add file to filemap").classes("text-lg font-semibold")
-        ui.input("Local file:").classes("w-full")
-        ui.button("Cancel").on("click", add_file_dialog.close)
+        local_file = ui.input("Local file:").classes("w-full")
+        with ui.row().classes("w-full justify-end"):
+            ui.button("Choose Local File").on(
+                "click",
+                lambda local_file=local_file, config=config: get_local_file(
+                    local_file, config
+                ),
+            ).style("width: 200px !important;")
+        remote_file = ui.input("Remote file").classes("w-full")
+        with ui.column().classes("w-full") as multi_result:
+            multi_result.set_visibility(False)
+        with ui.row().classes("w-full justify-end"):
+            ui.button("Find Remote File").on(
+                "click",
+                lambda remote_file=remote_file,
+                local_file=local_file,
+                synced_filemap=synced_filemap,
+                multi_result=multi_result: find_remote_file(
+                    remote_file,
+                    local_file,
+                    synced_filemap.get(local_file.value),
+                    config,
+                    multi_result,
+                ),
+            ).classes("bg-orange").style("width: 200px !important;")
+        with ui.grid(columns=2).classes("w-full gap-4"):
+            ui.label("Put in task:").classes("text-md font-semibold")
+            ui.label("Create new task:").classes("text-md font-semibold")
+            to_task = ui.select(tasks, value=tasks[-1]).classes("w-full")
+            new_task = ui.input()
+        with ui.row().classes("w-full justify-end gap-2"):
+            ui.button("Add").on(
+                "click",
+                lambda: add_file(
+                    local_file,
+                    remote_file,
+                    file_map,
+                    filemap_file,
+                    to_task.value,
+                    new_task.value,
+                    cfg,
+                    panel,
+                    add_file_dialog,
+                ),
+            ).classes("bg-green")
+            ui.button("Cancel").on(
+                "click",
+                lambda: (add_file_dialog.close, _reload_panel(cfg, panel)),
+            )
 
     with ui.grid(columns=2).classes("w-full pt-4"):
-        ui.button("Use keys").on("click", use_keys)
+        ui.button("Use keys").on(
+            "click", lambda: use_keys(config, config_file)
+        )
         with ui.row().classes("w-full justify-end gap-2"):
             ui.button("Add file").classes("bg-green").on(
                 "click", add_file_dialog.open

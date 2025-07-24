@@ -15,7 +15,7 @@ synced_filemap:
   1: /home/marpauli/code/sync_config/cml/synced_file_map.yaml
   2: /home/marpauli/code/sync_config/testing/synced_file_map.yaml
 current:
-  cfg_dir: 2
+  cfg_dir: 1
   cfg_file: 0
   filemap: 0
   synced_filemap: 0

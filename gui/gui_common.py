@@ -90,6 +90,14 @@ class CurrentConfig:
             return self.config_files[self.cfg_file]
         return Path(self.config_dirs[self.cfg_dir]) / "sync_conf.yaml"
 
+    @property
+    def synced_filemap_file(self) -> str | Path | None:
+        if not self.cfg_dir and not self.synced_filemap:
+            return
+        elif self.synced_filemap:
+            return self.synced_filemaps[self.synced_filemap]
+        return Path(self.config_dirs[self.cfg_dir]) / "synced_file_map.yaml"
+
     def update_config(self, cfg_d, cfg_f, fmp, s_fmp):
         self.cfg_dir = cfg_d
         self.cfg_file = cfg_f

@@ -3,9 +3,17 @@ import argparse
 import inspect
 import logging
 from pathlib import Path
+from subprocess import PIPE, STDOUT, run
 from time import strftime
 
 import yaml
+
+
+def g_print(msg: str, gui: bool):
+    if gui:
+        pass
+    else:
+        print(msg)
 
 
 def read_yaml(file: str | Path) -> dict:
@@ -326,3 +334,48 @@ def compose_ssh_command(
     if remote_cmd:
         ssh_cmd += remote_cmd
     return ssh_cmd
+
+
+def get_remote_files(
+    source, ssh_port, username, host, remote_dir
+) -> str | list[str] | None:
+    """
+    Search for the target file on remote system.
+    """
+    if not remote_dir:
+        remote_dir = "/"
+    result = run(
+        [
+            "ssh",
+            "-p",
+            str(ssh_port),
+            f"{username}@{host}",
+            "find",
+            remote_dir,
+            "-name",
+            str(source.name),
+            "2>/dev/null",
+        ],
+        stdout=PIPE,
+        stderr=STDOUT,
+        text=True,
+    ).stdout.splitlines()
+    return result
+
+
+def find_next_key(keys: list[int] | set[int]) -> int:
+    """Find next free key for file map dictionary."""
+    keys_set = set(keys)
+    i = 1
+    while i in keys_set:
+        i += 1
+    return i
+
+
+def update_file_map(task, src, trg, file_map, filemap_file):
+    next_key = find_next_key(list(get_all_maps(file_map).keys()))
+    if task not in list(file_map.keys()):
+        file_map[task] = {next_key: [src, trg]}
+    else:
+        file_map[task][next_key] = [src, trg]
+    write_yaml(filemap_file, file_map)

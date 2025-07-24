@@ -1,5 +1,8 @@
 from nicegui import ui
 
+# TODO:
+# - implement functionality of <ADD> and <REMOVE> buttons
+
 
 def save_project_config(cfg, footer):
     cfg.update_config(

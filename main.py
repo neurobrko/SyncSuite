@@ -25,8 +25,8 @@ if DEBUG:
         print("Remote debugging enabled. Waiting for client connection...")
         debugpy.wait_for_client()
 
-cfg_file = Path("gui/gui_cfg.yaml")
-project_config = read_yaml(cfg_file)
+gui_cfg_file = Path("gui/gui_cfg.yaml")
+project_config = read_yaml(gui_cfg_file)
 current_config = CurrentConfig(project_config)
 
 # UI
@@ -55,7 +55,7 @@ with ui.tab_panels(tabs, value=fmp).classes("w-full") as tab_panels:
         r2r_tab()
     with ui.tab_panel(fmp) as fmp_panel:
         fmp_panel.classes("gap-0")
-        fmp_tab(current_config)
+        fmp_tab(current_config, fmp_panel)
     with ui.tab_panel(cfg) as cfg_panel:
         cfg_tab()
     with ui.tab_panel(log) as log_panel:
@@ -72,7 +72,7 @@ def reload_tab(tab_name):
     elif tab_name == "FMP":
         fmp_panel.clear()
         with fmp_panel:
-            fmp_tab(current_config)
+            fmp_tab(current_config, fmp_panel)
     elif tab_name == "CFG":
         cfg_panel.clear()
         with cfg_panel:
