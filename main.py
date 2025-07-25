@@ -30,14 +30,16 @@ project_config = read_yaml(gui_cfg_file)
 current_config = CurrentConfig(project_config)
 
 # UI
-ui.add_head_html("""
-<style>
+ui.add_css("""
 button {
     width: 120px !important;
 }
-</style>
+.multi-line-notification { white-space: pre-line; }
+.cbox-sel {
+    width: 60px !important;
+    background: grey !important;
+}
 """)
-ui.html("<style>.multi-line-notification { white-space: pre-line; }</style>")
 ui.dark_mode(True)
 
 with ui.tabs().classes("w-full") as tabs:

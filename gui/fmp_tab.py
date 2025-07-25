@@ -8,18 +8,13 @@ from common import (
 )
 from gui.gui_common import path_ellipsis
 
-# NOTE:
-# KNOWN BUGS:
-# - when all keys are deleted from task, empty task remains
+# TODO: switch automatically to R2R tab after hitting use keys button
+#        NOTE: After implementing R2R tab!
 #
-# TODO:
-# - do some MORE TESTING!
-# - when deleting task, there should be either separate tab,
-#   or the tab should be "switched" to delete mode to prevent accidental
-#   deletion of selected file keys from config_file.
-# - switch automatically to R2R tab after hitting use keys button
-# - figure out, wheter it's possible to add some delay to tooltip or move
-#   to some non-blocking position
+# TODO: when deleting task, there should be either separate tab,
+#       or the tab should be "switched" to delete mode to prevent accidental
+#       deletion of selected file keys from config_file.
+#        NOTE: Temporary solution: Use <ALL>, <NONE>, <RESET> buttons
 
 # set global variables
 tasks_values = {}
@@ -172,10 +167,18 @@ def delete_keys(fmp, fmp_file, cfg, cfg_file, selected_tasks, selected_keys):
         tasks_values.pop(task)
 
     # Remove selected keys from remaining tasks and files_values
+    empty_tasks = []
     for key in selected_keys:
         for task in fmp:
             fmp[task].pop(key, None)
+            if len(fmp[task]) == 0:
+                empty_tasks.append(task)
         files_values.pop(key)
+    # if task is emty after key deletion, remove task
+    for task in empty_tasks:
+        task_cboxes[task].delete()
+        fmp.pop(task)
+        tasks_values.pop(task)
 
     write_yaml(fmp_file, fmp)
     ui.notify("Successfully deleted.")
@@ -218,6 +221,13 @@ def delete_dialog(fmp, fmp_file, cfg, cfg_file):
     confirm_del.open()
 
 
+def _selection_toggle(value):
+    for task in task_cboxes.values():
+        task.value = value
+    for file in files_cboxes.values():
+        file.value = value
+
+
 def fmp_tab(cfg, panel=None):
     filemap_file = cfg.filemap_file
     file_map = read_yaml(filemap_file)
@@ -254,7 +264,7 @@ def fmp_tab(cfg, panel=None):
             ) as cbox:
                 files_cboxes[num] = cbox
                 cbox.classes("pl-6 pt-1").props("dense")
-                with ui.tooltip().classes("w-full"):
+                with ui.tooltip().classes("w-10/12").props("delay=650"):
                     ui.html(
                         f"<b>src:</b> {files[0]}<br><b>trg:</b> {files[1]}"
                     ).classes("text-sm")
@@ -315,9 +325,19 @@ def fmp_tab(cfg, panel=None):
             )
 
     with ui.grid(columns=2).classes("w-full pt-4"):
-        ui.button("Use keys").on(
-            "click", lambda: use_keys(config, config_file)
-        )
+        with ui.row().classes("w-full gap-2"):
+            ui.button("Use keys").on(
+                "click", lambda: use_keys(config, config_file)
+            )
+            ui.button("All").on(
+                "click", lambda: _selection_toggle(True)
+            ).classes("cbox-sel")
+            ui.button("None").on(
+                "click", lambda: _selection_toggle(False)
+            ).classes("cbox-sel")
+            ui.button("Reset").on(
+                "click", lambda: _reload_panel(cfg, panel)
+            ).classes("cbox-sel")
         with ui.row().classes("w-full justify-end gap-2"):
             ui.button("Add file").classes("bg-green").on(
                 "click", add_file_dialog.open
