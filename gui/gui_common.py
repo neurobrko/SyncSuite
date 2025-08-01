@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+from nicegui import app
 from pathlib import Path
-from common import write_yaml
+from common import read_yaml, write_yaml
 
 
 def path_ellipsis(path: str | Path, ellipsis="...", path_sep="/", depth=2):
@@ -12,14 +13,22 @@ def path_ellipsis(path: str | Path, ellipsis="...", path_sep="/", depth=2):
     return "Invalid path!"
 
 
+async def choose_file(local_root_dir="~"):
+    new_file = await app.native.main_window.create_file_dialog(
+        allow_multiple=False, directory=local_root_dir
+    )
+    new_file = Path(new_file[0]).relative_to(local_root_dir)
+    return new_file.as_posix()
+
+
 class CurrentConfig:
-    def __init__(self, project_config):
-        self.project_config = project_config
-        self.config_dirs = project_config.get("cfg_dir", [])
-        self.config_files = project_config.get("cfg_file", [])
-        self.filemaps = project_config.get("filemap", [])
-        self.synced_filemaps = project_config.get("synced_filemap", [])
-        self.current_project = project_config.get(
+    def __init__(self, gui_cfg_file):
+        self._project_config = read_yaml(gui_cfg_file)
+        self.config_dirs = self.project_config.get("cfg_dir", [])
+        self.config_files = self.project_config.get("cfg_file", [])
+        self.filemaps = self.project_config.get("filemap", [])
+        self.synced_filemaps = self.project_config.get("synced_filemap", [])
+        self.current_project = self.project_config.get(
             "current",
             {"cfg_dir": 0, "cfg_file": 0, "filemap": 0, "synced_filemap": 0},
         )
@@ -29,6 +38,14 @@ class CurrentConfig:
         self._synced_filemap = self.current_project["synced_filemap"]
 
         self.config_footer = self.get_config_footer()
+
+    @property
+    def project_config(self):
+        return self._project_config
+
+    @project_config.setter
+    def project_config(self, gui_cfg_file):
+        self._project_config = read_yaml(gui_cfg_file)
 
     @property
     def cfg_dir(self):

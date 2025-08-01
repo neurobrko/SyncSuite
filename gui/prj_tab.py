@@ -1,4 +1,4 @@
-from nicegui import ui
+from nicegui import app, ui
 
 # TODO:
 # - implement functionality of <ADD> and <REMOVE> buttons
@@ -12,8 +12,18 @@ def save_project_config(cfg, footer):
     ui.notify("Configuration saved!")
 
 
-def add_path(cfg_section: str):
-    pass
+async def add_path(cfg, cfg_section: str, dir=False):
+    print(cfg.project_config)
+    dt = 20 if dir else 10
+    new_file = await app.native.main_window.create_file_dialog(
+        dialog_type=dt,
+        allow_multiple=False,
+        directory="~",
+    )
+    if new_file:
+        ui.notify(f"{cfg_section}: {new_file[0]} ({type(new_file[0])})")
+    else:
+        ui.notify("Nothing selected!")
 
 
 def del_path(cgf_section: str, path: int):
@@ -28,7 +38,9 @@ def prj_tab(cfg, footer):
     with ui.grid(columns=2).classes("w-full gap-2"):
         ui.label("Configuration directory:")
         with ui.row().classes("gap-2 justify-end"):
-            ui.button("Add").on("click", lambda: add_path("cfg_dir"))
+            ui.button("Add").on(
+                "click", lambda: add_path(cfg, "cfg_dir", True)
+            )
             ui.button("Remove").on(
                 "click", lambda: del_path("cfg_dir", cfg.cfg_dir)
             )
@@ -40,7 +52,7 @@ def prj_tab(cfg, footer):
 
         ui.label("Configuration file:")
         with ui.row().classes("gap-2 justify-end"):
-            ui.button("Add").on("click", lambda: add_path("cfg_file"))
+            ui.button("Add").on("click", lambda: add_path(cfg, "cfg_file"))
             ui.button("Remove").on(
                 "click", lambda: del_path("cfg_file", cfg.cfg_file)
             )
@@ -52,7 +64,7 @@ def prj_tab(cfg, footer):
 
         ui.label("File map:")
         with ui.row().classes("gap-2 justify-end"):
-            ui.button("Add").on("click", lambda: add_path("filemap"))
+            ui.button("Add").on("click", lambda: add_path(cfg, "filemap"))
             ui.button("Remove").on(
                 "click", lambda: del_path("filemap", cfg.filemap)
             )
@@ -64,7 +76,9 @@ def prj_tab(cfg, footer):
 
         ui.label("Synced file map:")
         with ui.row().classes("gap-2 justify-end"):
-            ui.button("Add").on("click", lambda: add_path("synced_filemap"))
+            ui.button("Add").on(
+                "click", lambda: add_path(cfg, "synced_filemap")
+            )
             ui.button("Remove").on(
                 "click", lambda: del_path("synced_filemap", cfg.synced_filemap)
             )

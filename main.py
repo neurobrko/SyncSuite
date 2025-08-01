@@ -4,7 +4,6 @@ import multiprocessing
 from nicegui import ui
 from pathlib import Path
 from gui.gui_common import CurrentConfig
-from common import read_yaml
 
 from gui.cfg_tab import cfg_tab
 from gui.fmp_tab import fmp_tab
@@ -26,8 +25,7 @@ if DEBUG:
         debugpy.wait_for_client()
 
 gui_cfg_file = Path("gui/gui_cfg.yaml")
-project_config = read_yaml(gui_cfg_file)
-current_config = CurrentConfig(project_config)
+current_config = CurrentConfig(gui_cfg_file)
 
 # UI
 ui.add_css("""
@@ -52,7 +50,7 @@ with ui.tabs().classes("w-full") as tabs:
 with ui.footer().classes():
     footer = ui.label(current_config.config_footer)
 
-with ui.tab_panels(tabs, value=fmp).classes("w-full") as tab_panels:
+with ui.tab_panels(tabs, value=prj).classes("w-full") as tab_panels:
     with ui.tab_panel(r2r) as r2r_panel:
         r2r_tab()
     with ui.tab_panel(fmp) as fmp_panel:
