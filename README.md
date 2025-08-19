@@ -6,6 +6,14 @@
 **Set of tools to manage and perform synchronization of files to remote
 system using rsync. Script also outputs its action to console and logs them.**
 
+All modern IDEs probably contain tools to perform similar actions, but I've
+decided to create my own, because IDEs (VSCode and PyCharm definitely) usually
+copy all kind of data to remote to make it work. I also like to have some level
+of verbosity and some logging to check, what have I messed again by doing
+before thinking. Also the obvious way would be to sync everything changed
+using `git diff`, but sometimes you need to sync also unchanged files, or not
+everything that was changed.
+
 > **IMPORTANT**\
 > You need to use passwordless ssh key on remote machine to work!
 > [Quick Guide to setup SSH w/o password]
@@ -30,13 +38,13 @@ counterparts on remote and group them in tasks
 
 Standalone CLI script to perform synchronization. Configuration can be loaded
 with `-c` flag, file map with `-m` flag or both from configuration directory
-using `-cm` flag. All Settings can be altered by using number of arguments.
+using `-cd` flag. All Settings can be altered by using number of arguments.
 For more details see `rsync_to_remote.py -h`
 
 ### file_map.py
 
 Script to view and manage file map file. `-sm` search for remote counterparts
-in synced file map, before resorting to search on remote via ssh. `-cm`, `-c`
+in synced file map, before resorting to search on remote via ssh. `-cd`, `-c`
 and `-m` flags can be used same as with rsync_to_remote.py. With `-d`, you can
 either delete file from map by specifying its number, or if `-t` is used,
 whole task will be deleted from file map.
@@ -44,13 +52,15 @@ For more details see `file_map.py -h`
 
 ### create_path_sync.py
 
-To speed up search for possible remote counterpart to local file, `file_map.py`
-script creates `synced_file_map.yaml`.\
-This is pure helper script very little checks and verbosity!
-f something goes south, it talks to you through Traceback.\
+To speed up search for possible remote counterpart to local file,
+`create_path_sync.py` script creates `synced_file_map.yaml`.\
+This is pure helper script with very little checks and verbosity!
+If something goes south, it talks to you through Traceback.\
 It needs a `sync_conf.yaml` config file in same directory or can be specified
 using either `-cd` or `-c` flags and result is saved in target directory/file,
-if `-t` flag is provided, otherwise it ends up in script root.\
+if `-t` flag is provided, otherwise it ends up in script root or dir specified
+with `-cd`.\
+Ignored folders, file(type)s are specified in `common.py`.\
 If target file already exists, it will be overwritten without warning!
 
 > **INFO**
@@ -158,10 +168,17 @@ alias rfm='/your/sync_suite/dir/file_map.py -cm /your/config/dir'
 ```
 
 > **NOTE**\
-> To see more *.bash_aliases magic* visit my [DevTools repo](https://github.com/neurobrko/DevTools).
+> To see more *aliases magic* visit my [DevTools repo](https://github.com/neurobrko/DevTools).
+
+## GUI WiP
+
+Some work have already been done on new GUI. Right now (25/08/19) `Filemap tab`
+is fully functional and can be used to manage synced files/tasks. In
+`Project tab` you can select configs, but you have to edit them manually to
+`gui_cfg.yaml`.
 
 ## TODO
 
 - Remove `ssh -p ...` from `rsync options` and amend rsync command accordingly
-- Create GUI with NiceGUI or at least reuse PySimpleGUI
-implementation from previous version
+- create separate config file for ignored files/folders for `create_path_sync`
+- Create GUI with NiceGUI (already WIP)
