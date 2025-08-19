@@ -27,22 +27,70 @@ config_editor = "/home/marpauli/data/soft/nvim-linux-x86_64/bin/nvim"
 conf_file = script_root / "test_files/config/sync_conf.yaml"
 date_format = read_yaml(conf_file)["script"]["date_format"]
 
+# TESTING IGNORED
+# ignored_folders = [
+#     ".idea",
+#     ".git",
+#     "__pycache__",
+#     ".ruff_cache",
+#     "icons",
+#     "pics",
+#     "target",
+# ]
+# ignored_extensions = [".log", ".yaml", ".py", ".lock", ".toml"]
+# ignored_files = [
+#     ".gitignore",
+#     "README.md",
+#     "LICENSE",
+#     ".pre-commit-config.yaml",
+#     "requirements.txt",
+# ]
+
+# CML IGNORED
 ignored_folders = [
     ".idea",
     ".git",
     "__pycache__",
     ".ruff_cache",
-    "icons",
-    "pics",
-    "target",
+    ".vscode",
+    "virl2_client",
+    "tests",
+    "docs",
+    "node_modules",
+    "breakoutui",
+    "golang",
+    "db_migrations",
+    "ui",
+    "jenkins",
+    "copyright",
+    "sample",
+    "debian-build-dir",
+    "cockpit",
+    "systemd-services",
+    ".yarn",
+    ".pytest_cache",
 ]
-ignored_extensions = [".log", ".yaml", ".py", ".lock", ".toml"]
+ignored_extensions = [
+    ".log",
+    ".pyc",
+    ".c",
+    ".h",
+    ".toml",
+    ".lock",
+    ".ini",
+    ".in",
+    ".pem",
+    ".html",
+    ".so",
+    ".txt",
+]
 ignored_files = [
     ".gitignore",
     "README.md",
     "LICENSE",
     ".pre-commit-config.yaml",
-    "requirements.txt",
+    "__init__.py",
+    "Makefile",
 ]
 
 # terminal colors

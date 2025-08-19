@@ -88,8 +88,7 @@ def get_target_file():
         return Path(args.config_dir) / synced_filemap_filefilename
     else:
         print(
-            f"{CB}{synced_filemap_filefilename} will be "
-            f"saved in {script_root}!{RST}"
+            f"{CB}{synced_filemap_filefilename} will be saved in {script_root}!{RST}"
         )
         return script_root / synced_filemap_filefilename
 
